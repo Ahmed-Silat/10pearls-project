@@ -1,6 +1,7 @@
 package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Dto.LoginDto;
+import com._pearls.contactApp.Dto.SignupDto;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -23,17 +24,17 @@ public class UserController {
     }
 
     @PostMapping
-    public String createUser(@RequestBody User user) {
+    public User createUser(@RequestBody User user) {
         return this.userService.createUser(user);
     }
 
     @PutMapping("/{id}")
-    public String updateUser(@PathVariable String id, @RequestBody User user) {
+    public User updateUser(@PathVariable String id, @RequestBody User user) {
         return userService.updateUser(user, id);
     }
 
     @PostMapping("/login")
-    public String checkEmailPassword(@RequestBody LoginDto loginDto) {
+    public SignupDto checkEmailPassword(@RequestBody LoginDto loginDto) throws Exception {
         return userService.checkEmailPassword(loginDto);
     }
 
