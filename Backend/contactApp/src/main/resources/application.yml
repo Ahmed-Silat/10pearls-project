@@ -1,7 +1,7 @@
 #spring.application.name=contactApp
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/contact_app
+    url: jdbc:postgresql://localhost:5432/10pearls
     username: postgres
     password: ahmed123
   jpa:
