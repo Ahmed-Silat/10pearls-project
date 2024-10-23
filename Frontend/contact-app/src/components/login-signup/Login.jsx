@@ -1,5 +1,5 @@
 import Button from "../button/Button";
-import { signin } from "../service/authService";
+import { signin } from "../../service/authService";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import { useNavigate } from "react-router-dom";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
