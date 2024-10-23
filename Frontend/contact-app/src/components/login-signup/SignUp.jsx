@@ -30,7 +30,7 @@ export default function SignUp() {
     setRePassword(event.target.value);
   };
 
-  const sendSingupData = async (event) => {
+  const sendSignupData = async (event) => {
     event.preventDefault();
     // const userData = await signup(username, email, password);
     // localStorage.setItem("userData", JSON.stringify(userData));
@@ -40,7 +40,7 @@ export default function SignUp() {
   return (
     <div className="flex justify-center items-center h-screen">
       <div className="bg-white-800 p-8 rounded-lg shadow-lg text-black flex text-lg font-sans">
-        <form action="" onSubmit={sendSingupData}>
+        <form action="" onSubmit={sendSignupData}>
           <div>
             <HeadingAndText
               mainHeading="Signup"
