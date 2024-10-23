@@ -2,7 +2,7 @@ import Button from "../button/Button";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { useState } from "react";
-import { signup } from "../service/authService";
+import { signup } from "../../service/authService";
 import { useNavigate } from "react-router-dom";
 import TextWithHorizontalLine from "../text-with-horizontal-line/TextWithHorizontalLine";
 import SocialMediaButtons from "../social-media-buttons/SocialMediaButtons";

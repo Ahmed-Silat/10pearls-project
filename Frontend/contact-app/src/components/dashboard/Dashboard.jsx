@@ -6,7 +6,7 @@ import {
   getData,
   postData,
   updateExistingTodo,
-} from "../service/TodoService";
+} from "../../service/TodoService";
 import { useNavigate } from "react-router-dom";
 import CheckboxWithInput from "../checkbox-and-input/CheckboxWithInput";
 
