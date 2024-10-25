@@ -1,11 +1,11 @@
-// import axios from "axios";
-// import { API_URL } from "./Constants";
+import axios from "axios";
+import { API_URL } from "./service/Constants";
 
-// export const getData = async (userId) => {
-//   const { data } = await axios.get(`${API_URL}/todo/user/${userId}`);
-//   console.log("Data fetched successfully");
-//   return data;
-// };
+export const getData = async (userId) => {
+  const { data } = await axios.get(`${API_URL}/${userId}`);
+  console.log("Data fetched successfully");
+  return data;
+};
 
 // export const postData = async (value, userId) => {
 //   const { data } = await axios.post(`${API_URL}/todo`, {
