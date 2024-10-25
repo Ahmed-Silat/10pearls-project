@@ -1,5 +1,5 @@
 import Button from "../button/Button";
-import { signin } from "../../service/authService";
+import { login } from "../../service/authService";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import { useNavigate } from "react-router-dom";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
@@ -23,10 +23,10 @@ export default function Login() {
 
   const sendLoginData = async (event) => {
     event.preventDefault();
-    // const userData = await signin(email, password);
-    // // localStorage.setItem("token", true);
-    // localStorage.setItem("userData", JSON.stringify(userData));
-    // navigate("/");
+    const userData = await login(email, password);
+    // localStorage.setItem("token", true);
+    localStorage.setItem("userData", JSON.stringify(userData));
+    navigate("/");
   };
 
   return (

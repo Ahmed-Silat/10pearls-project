@@ -8,18 +8,33 @@ import TextWithHorizontalLine from "../text-with-horizontal-line/TextWithHorizon
 import SocialMediaButtons from "../social-media-buttons/SocialMediaButtons";
 
 export default function SignUp() {
-  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNo, setPhoneNo] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [rePassword, setRePassword] = useState("");
   const navigate = useNavigate();
 
-  const handleUsernameChange = (event) => {
-    setUsername(event.target.value);
+  const handleFisrtNameChange = (event) => {
+    setFirstName(event.target.value);
+  };
+
+  const handleLastNameChange = (event) => {
+    setLastName(event.target.value);
   };
 
   const handleEmailChange = (event) => {
     setEmail(event.target.value);
+  };
+
+  const handlePhoneNoChange = (event) => {
+    setPhoneNo(event.target.value);
+  };
+
+  const handleAddressChange = (event) => {
+    setAddress(event.target.value);
   };
 
   const handlePasswordChange = (event) => {
@@ -32,9 +47,16 @@ export default function SignUp() {
 
   const sendSignupData = async (event) => {
     event.preventDefault();
-    // const userData = await signup(username, email, password);
-    // localStorage.setItem("userData", JSON.stringify(userData));
-    // navigate("/");
+    const userData = await signup(
+      firstName,
+      lastName,
+      address,
+      phoneNo,
+      email,
+      password
+    );
+    localStorage.setItem("userData", JSON.stringify(userData));
+    navigate("/");
   };
 
   return (
@@ -49,12 +71,21 @@ export default function SignUp() {
             />
 
             <LabelWithInput
-              htmlFor="username"
-              labelName="UserName"
+              htmlFor="firstName"
+              labelName="First Name"
               inputType="text"
-              inputId="username"
-              placeholder="Enter Your Name"
-              onChange={handleUsernameChange}
+              inputId="firstName"
+              placeholder="Enter Your First Name"
+              onChange={handleFisrtNameChange}
+            />
+
+            <LabelWithInput
+              htmlFor="lastName"
+              labelName="Last Name"
+              inputType="text"
+              inputId="lastName"
+              placeholder="Enter Your Last Name"
+              onChange={handleLastNameChange}
             />
 
             <LabelWithInput
@@ -64,6 +95,24 @@ export default function SignUp() {
               inputId="email"
               placeholder="Enter Your Email"
               onChange={handleEmailChange}
+            />
+
+            <LabelWithInput
+              htmlFor="phone"
+              labelName="Phone No"
+              inputType="text"
+              inputId="phone"
+              placeholder="Enter Your Phone No"
+              onChange={handlePhoneNoChange}
+            />
+
+            <LabelWithInput
+              htmlFor="address"
+              labelName="Address"
+              inputType="text"
+              inputId="address"
+              placeholder="Enter Your Address"
+              onChange={handleAddressChange}
             />
 
             <LabelWithInput
