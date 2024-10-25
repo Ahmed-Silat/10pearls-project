@@ -45,18 +45,29 @@ export default function SignUp() {
     setRePassword(event.target.value);
   };
 
+  const confirmPassword = () => {
+    if (password === rePassword) {
+      console.log("Password matched");
+      return true;
+    }
+    console.log("Password Does not match");
+    return false;
+  };
+
   const sendSignupData = async (event) => {
     event.preventDefault();
-    const userData = await signup(
-      firstName,
-      lastName,
-      address,
-      phoneNo,
-      email,
-      password
-    );
-    localStorage.setItem("userData", JSON.stringify(userData));
-    navigate("/");
+    if (confirmPassword()) {
+      const userData = await signup(
+        firstName,
+        lastName,
+        address,
+        phoneNo,
+        email,
+        password
+      );
+      localStorage.setItem("userData", JSON.stringify(userData));
+      navigate("/");
+    }
   };
 
   return (

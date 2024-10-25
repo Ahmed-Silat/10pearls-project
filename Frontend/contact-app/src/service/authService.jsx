@@ -22,7 +22,7 @@ export const signup = async (
     firstName: firstName,
     lastName: lastName,
     address: address,
-    phoneNo: phoneNo,
+    phone: phoneNo,
     email: email,
     password: password,
   });
