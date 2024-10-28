@@ -1,9 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
 import { MdDelete } from "react-icons/md";
 import { FaEdit } from "react-icons/fa";
+import DeleteModal from "../modals/DeleteModal";
+import { deleteContact, getData } from "../../service/ContactService";
 
 const ContactCard = (props) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openDeleteModal = () => setIsModalOpen(true);
+  const closeDeleteModal = () => setIsModalOpen(false);
+
   return (
     <div className="flex justify-center my-4">
       <div className="bg-cyan-950 w-full max-w-md rounded-3xl shadow-lg overflow-hidden">
@@ -18,8 +25,12 @@ const ContactCard = (props) => {
               </h1>
             </div>
             <div className="flex space-x-2 items-center">
-              <MdDelete />
-              <FaEdit />
+              <button onClick={openDeleteModal}>
+                <MdDelete />
+              </button>
+              <button>
+                <FaEdit />
+              </button>
             </div>
           </div>
 
@@ -36,6 +47,12 @@ const ContactCard = (props) => {
           </div>
         </div>
       </div>
+      {isModalOpen && (
+        <DeleteModal
+          onClose={closeDeleteModal}
+          deleteContact={props.onDelete}
+        />
+      )}
     </div>
   );
 };
