@@ -54,7 +54,7 @@ const ContactCard = (props) => {
       {isDeleteModalOpen && (
         <DeleteModal
           onClose={closeDeleteModal}
-          //   deleteContact={props.onDelete}
+          deleteContact={props.onDelete}
         />
       )}
 
