@@ -15,9 +15,9 @@ export const getData = async (userId) => {
 //   console.log("Todo added successfully:", data);
 // };
 
-// export const deleteData = async (id) => {
-//   const { data } = await axios.delete(`${API_URL}/todo/${id}`);
-// };
+export const deleteContact = async (contactId) => {
+  const { data } = await axios.delete(`http://localhost:8080/contact/${contactId}`);
+};
 
 // export const updateExistingTodo = async (id, text, userId) => {
 //   const { data } = await axios.put(`${API_URL}/todo/${id}`, {
