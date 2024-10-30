@@ -4,9 +4,9 @@ import Button from "../button/Button";
 import {
   deleteContact,
   deleteData,
-  getData,
+  getContactsByUserId,
   postData,
-  updateExistingTodo,
+  updateContact,
 } from "../../service/ContactService";
 import { useNavigate } from "react-router-dom";
 import CheckboxWithInput from "../checkbox-and-input/CheckboxWithInput";
@@ -28,7 +28,7 @@ export default function Dashboard() {
   const currentUser = JSON.parse(userDetails);
 
   const fetchData = async () => {
-    const data = (await getData(currentUser.id)) || [];
+    const data = (await getContactsByUserId(currentUser.id)) || [];
     setContact(data);
     console.log(data);
   };
@@ -46,7 +46,7 @@ export default function Dashboard() {
   };
 
   const updateTodo = async () => {
-    // await updateExistingTodo(id, inputValue, currentUser.id);
+    // await updateContact(id, inputValue, currentUser.id);
     // await fetchData();
     // setToggleButton(false);
     // setInputValue("");

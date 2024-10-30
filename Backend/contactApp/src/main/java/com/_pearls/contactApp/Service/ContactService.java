@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @Slf4j
@@ -29,6 +28,11 @@ public class ContactService {
     public List<Contact> getContactsByUserId(String id) {
         return contactRepo.findAllByUser_Id(id);
     }
+
+    public List<Contact> getContactsByContactId(String id) {
+        return contactRepo.findAllById(id);
+    }
+
 
     public Contact createContact(ContactDto contactDto) {
         Contact contact = new Contact();
