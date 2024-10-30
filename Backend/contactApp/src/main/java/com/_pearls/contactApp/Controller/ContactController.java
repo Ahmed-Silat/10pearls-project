@@ -18,9 +18,14 @@ public class ContactController {
     @Autowired
     private ContactService contactService;
 
-    @GetMapping("/{id}")
+    @GetMapping("/user/{id}")
     public List<Contact> getContactsByUserId(@PathVariable String id) {
         return contactService.getContactsByUserId(id);
+    }
+
+    @GetMapping("/{id}")
+    public List<Contact> getContactsByContactId(@PathVariable String id) {
+        return contactService.getContactsByContactId(id);
     }
 
     @PostMapping

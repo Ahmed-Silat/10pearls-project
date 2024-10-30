@@ -1,8 +1,8 @@
 import axios from "axios";
 import { API_URL } from "./Constants";
 
-export const getData = async (userId) => {
-  const { data } = await axios.get(`http://localhost:8080/contact/${userId}`);
+export const getContactsByUserId = async (userId) => {
+  const { data } = await axios.get(`http://localhost:8080/contact/user/${userId}`);
   console.log("Data fetched successfully");
   return data;
 };
@@ -15,7 +15,7 @@ export const getData = async (userId) => {
 //   console.log("Todo added successfully:", data);
 // };
 
-export const updateExistingTodo = async (id, text, userId) => {
+export const updateContact = async (id, text, userId) => {
   const { data } = await axios.put(`http://localhost:8080/contact/${id}`, {
     title: text,
     userId: userId,
