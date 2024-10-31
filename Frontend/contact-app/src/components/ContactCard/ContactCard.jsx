@@ -69,7 +69,8 @@ const ContactCard = (props) => {
       {isDeleteModalOpen && (
         <DeleteModal
           onClose={closeDeleteModal}
-          deleteContact={props.onDelete}
+          contactId={props.contactId}
+          getContacts={props.fetchContacts}
         />
       )}
 
@@ -77,6 +78,7 @@ const ContactCard = (props) => {
         <EditModal
           onClose={closeEditModal}
           contactData={currentContactData}
+          getContacts={props.fetchContacts}
         />
       )}
     </div>
