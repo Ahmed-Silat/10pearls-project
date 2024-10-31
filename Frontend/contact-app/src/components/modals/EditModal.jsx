@@ -9,6 +9,7 @@ import {
 } from "@headlessui/react";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import { updateContact } from "../../service/ContactService";
 
 export default function EditModal(props) {
   const [open, setOpen] = useState(true);
@@ -39,8 +40,22 @@ export default function EditModal(props) {
   const handleAddressChange = (event) => {
     setAddress(event.target.value);
   };
+
+  const updateCurrentContact = async () => {
+    await updateContact(
+      contactId,
+      firstName,
+      lastName,
+      email,
+      phoneNo,
+      address,
+      userId
+    );
+    props.getContacts();
+  };
+
   useEffect(() => {
-    console.log(props.contactData);
+    // console.log(props.contactData);
     if (props.contactData) {
       setContactId(props.contactData.id);
       setFirstName(props.contactData.firstName);
@@ -52,8 +67,8 @@ export default function EditModal(props) {
     }
   }, [props.contactData]);
 
-  console.log(contactId);
-  console.log(userId);
+  // console.log(contactId);
+  // console.log(userId);
 
   return (
     <Dialog open={open} onClose={props.onClose} className="relative z-10">
@@ -148,7 +163,10 @@ export default function EditModal(props) {
             <div className="bg-gray-200 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
               <button
                 type="button"
-                onClick={props.onClose}
+                onClick={() => {
+                  updateCurrentContact();
+                  props.onClose();
+                }}
                 className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
               >
                 Update

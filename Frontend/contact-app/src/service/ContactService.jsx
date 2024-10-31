@@ -18,15 +18,32 @@ export const getContactsByUserId = async (userId) => {
 // };
 
 export const getContactById = async (contactId) => {
-  const { data } = await axios.get(`http://localhost:8080/contact/${contactId}`);
+  const { data } = await axios.get(
+    `http://localhost:8080/contact/${contactId}`
+  );
   return data;
 };
 
-export const updateContact = async (id, text, userId) => {
-  const { data } = await axios.put(`http://localhost:8080/contact/${id}`, {
-    title: text,
-    userId: userId,
-  });
+export const updateContact = async (
+  contactId,
+  firstName,
+  lastName,
+  email,
+  phone,
+  address,
+  user_id
+) => {
+  const { data } = await axios.put(
+    `http://localhost:8080/contact/${contactId}`,
+    {
+      firstName,
+      lastName,
+      email,
+      phone,
+      address,
+      user_id,
+    }
+  );
 };
 
 export const deleteContact = async (contactId) => {
