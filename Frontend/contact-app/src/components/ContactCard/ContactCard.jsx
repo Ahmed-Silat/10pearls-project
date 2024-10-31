@@ -4,16 +4,26 @@ import { MdDelete } from "react-icons/md";
 import { FaEdit } from "react-icons/fa";
 import DeleteModal from "../modals/DeleteModal";
 import EditModal from "../modals/EditModal";
+import { getContactById } from "../../service/ContactService";
 
 const ContactCard = (props) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentContactData, setCurrentContactData] = useState();
 
   const openDeleteModal = () => setIsDeleteModalOpen(true);
   const closeDeleteModal = () => setIsDeleteModalOpen(false);
 
   const openEditModal = () => setIsEditModalOpen(true);
-  const closeEditModal = () => setIsEditModalOpen(false);
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setCurrentContactData(undefined);
+  };
+
+  const getContactByContactId = async () => {
+    const data = await getContactById(props.contactId);
+    setCurrentContactData(data);
+  };
 
   return (
     <div className="flex justify-center my-4">
@@ -32,7 +42,12 @@ const ContactCard = (props) => {
               <button onClick={openDeleteModal}>
                 <MdDelete />
               </button>
-              <button onClick={openEditModal}>
+              <button
+                onClick={() => {
+                  getContactByContactId();
+                  openEditModal();
+                }}
+              >
                 <FaEdit />
               </button>
             </div>
@@ -58,7 +73,12 @@ const ContactCard = (props) => {
         />
       )}
 
-      {isEditModalOpen && <EditModal onClose={closeEditModal} />}
+      {isEditModalOpen && currentContactData && (
+        <EditModal
+          onClose={closeEditModal}
+          contactData={currentContactData}
+        />
+      )}
     </div>
   );
 };

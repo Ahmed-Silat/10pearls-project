@@ -2,7 +2,9 @@ import axios from "axios";
 import { API_URL } from "./Constants";
 
 export const getContactsByUserId = async (userId) => {
-  const { data } = await axios.get(`http://localhost:8080/contact/user/${userId}`);
+  const { data } = await axios.get(
+    `http://localhost:8080/contact/user/${userId}`
+  );
   console.log("Data fetched successfully");
   return data;
 };
@@ -15,6 +17,11 @@ export const getContactsByUserId = async (userId) => {
 //   console.log("Todo added successfully:", data);
 // };
 
+export const getContactById = async (contactId) => {
+  const { data } = await axios.get(`http://localhost:8080/contact/${contactId}`);
+  return data;
+};
+
 export const updateContact = async (id, text, userId) => {
   const { data } = await axios.put(`http://localhost:8080/contact/${id}`, {
     title: text,
@@ -23,7 +30,9 @@ export const updateContact = async (id, text, userId) => {
 };
 
 export const deleteContact = async (contactId) => {
-  const { data } = await axios.delete(`http://localhost:8080/contact/${contactId}`);
+  const { data } = await axios.delete(
+    `http://localhost:8080/contact/${contactId}`
+  );
 };
 
 // export const markAsCompletedAndSortData = async (userId, completed, sortBy) => {

@@ -13,5 +13,5 @@ public interface ContactRepo extends JpaRepository<Contact, String> {
 
     List<Contact> findAllByUser_Id(String userId);
 
-    List<Contact> findAllById(String contactId);
+    Optional<Contact> findAllById(String contactId);
 }

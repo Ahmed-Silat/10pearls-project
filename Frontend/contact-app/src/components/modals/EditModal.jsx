@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogBackdrop,
@@ -12,6 +12,48 @@ import LabelWithInput from "../label-and-inputs/LabelWithInput";
 
 export default function EditModal(props) {
   const [open, setOpen] = useState(true);
+  const [contactId, setContactId] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNo, setPhoneNo] = useState("");
+  const [address, setAddress] = useState("");
+  const [userId, setUserId] = useState("");
+
+  const handleFirstNameChange = (event) => {
+    setFirstName(event.target.value);
+  };
+
+  const handleLastNameChange = (event) => {
+    setLastName(event.target.value);
+  };
+
+  const handleEmailChange = (event) => {
+    setEmail(event.target.value);
+  };
+
+  const handlePhoneNoChange = (event) => {
+    setPhoneNo(event.target.value);
+  };
+
+  const handleAddressChange = (event) => {
+    setAddress(event.target.value);
+  };
+  useEffect(() => {
+    console.log(props.contactData);
+    if (props.contactData) {
+      setContactId(props.contactData.id);
+      setFirstName(props.contactData.firstName);
+      setLastName(props.contactData.lastName);
+      setEmail(props.contactData.email);
+      setPhoneNo(props.contactData.phone);
+      setAddress(props.contactData.address);
+      setUserId(props.contactData.user.id);
+    }
+  }, [props.contactData]);
+
+  console.log(contactId);
+  console.log(userId);
 
   return (
     <Dialog open={open} onClose={props.onClose} className="relative z-10">
@@ -50,7 +92,8 @@ export default function EditModal(props) {
                           inputType="text"
                           inputId="firstName"
                           placeholder="Enter Your First Name"
-                          //   onChange={handleFisrtNameChange}
+                          value={firstName}
+                          onChange={handleFirstNameChange}
                         />
 
                         <LabelWithInput
@@ -59,7 +102,8 @@ export default function EditModal(props) {
                           inputType="text"
                           inputId="lastName"
                           placeholder="Enter Your Last Name"
-                          //   onChange={handleLastNameChange}
+                          value={lastName}
+                          onChange={handleLastNameChange}
                         />
                       </div>
 
@@ -70,7 +114,8 @@ export default function EditModal(props) {
                           inputType="text"
                           inputId="email"
                           placeholder="Enter Your Email"
-                          // onChange={handleEmailChange}
+                          value={email}
+                          onChange={handleEmailChange}
                         />
 
                         <LabelWithInput
@@ -79,7 +124,8 @@ export default function EditModal(props) {
                           inputType="text"
                           inputId="phone"
                           placeholder="Enter Your Phone No"
-                          // onChange={handlePhoneNoChange}
+                          value={phoneNo}
+                          onChange={handlePhoneNoChange}
                         />
                       </div>
 
@@ -90,7 +136,8 @@ export default function EditModal(props) {
                           inputType="text"
                           inputId="address"
                           placeholder="Enter Your Address"
-                          // onChange={handleAddressChange}
+                          value={address}
+                          onChange={handleAddressChange}
                         />
                       </div>
                     </form>
