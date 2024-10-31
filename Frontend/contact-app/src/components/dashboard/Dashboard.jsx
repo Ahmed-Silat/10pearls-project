@@ -4,6 +4,7 @@ import Button from "../button/Button";
 import {
   deleteContact,
   deleteData,
+  getContactById,
   getContactsByUserId,
   postData,
   updateContact,
@@ -96,6 +97,8 @@ export default function Dashboard() {
                 address={value.address}
                 userId={value.user.id}
                 onDelete={() => deleteCurrentContact(value.id)}
+                // getContactData={() => getContactByContactId(value.id)}
+                contactId={value.id}
               />
             );
           })}

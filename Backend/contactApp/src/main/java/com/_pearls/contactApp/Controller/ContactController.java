@@ -24,7 +24,7 @@ public class ContactController {
     }
 
     @GetMapping("/{id}")
-    public List<Contact> getContactsByContactId(@PathVariable String id) {
+    public Optional<Contact> getContactsByContactId(@PathVariable String id) {
         return contactService.getContactsByContactId(id);
     }
 
