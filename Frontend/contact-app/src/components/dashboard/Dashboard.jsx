@@ -3,10 +3,15 @@ import Button from "../button/Button";
 import { getContactsByUserId } from "../../service/ContactService";
 import { useNavigate } from "react-router-dom";
 import ContactCard from "../ContactCard/ContactCard";
+import AddContactModal from "../modals/AddContactModal";
 
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
+  const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const navigate = useNavigate();
+
+  const openAddContactModal = () => setIsAddContactModalOpen(true);
+  const closeAddContactModal = () => setIsAddContactModalOpen(false);
 
   const userDetails = localStorage.getItem("userData");
   const currentUser = JSON.parse(userDetails);
@@ -15,12 +20,6 @@ export default function Dashboard() {
     const data = (await getContactsByUserId(currentUser.id)) || [];
     setContact(data);
     console.log(data);
-  };
-
-  const addTodo = async () => {
-    // await postData(inputValue, currentUser.id);
-    // await fetchContacts();
-    // setInputValue("");
   };
 
   const logout = () => {
@@ -35,6 +34,11 @@ export default function Dashboard() {
   return (
     <div>
       <div className="flex justify-end mr-6 mt-1">
+        <Button
+          name="Add Contact"
+          className="bg-blue-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 ease-in-out hover:bg-blue-500 rounded-2xl font-semibold text-sm"
+          onClick={openAddContactModal}
+        />
         <Button
           name="LOGOUT"
           className="bg-red-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 ease-in-out hover:bg-red-500 rounded-2xl font-semibold text-sm"
@@ -63,6 +67,14 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+
+      {isAddContactModalOpen && (
+        <AddContactModal
+          onClose={closeAddContactModal}
+          userId={currentUser.id}
+          fetchContacts={() => fetchContacts()}
+        />
+      )}
     </div>
   );
 }
