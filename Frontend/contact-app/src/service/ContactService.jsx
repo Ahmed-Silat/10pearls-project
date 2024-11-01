@@ -9,13 +9,24 @@ export const getContactsByUserId = async (userId) => {
   return data;
 };
 
-// export const postData = async (value, userId) => {
-//   const { data } = await axios.post(`${API_URL}/todo`, {
-//     title: value,
-//     userId: userId,
-//   });
-//   console.log("Todo added successfully:", data);
-// };
+export const createNewContact = async (
+  firstName,
+  lastName,
+  email,
+  address,
+  phone,
+  user_id
+) => {
+  const { data } = await axios.post(`http://localhost:8080/contact`, {
+    firstName,
+    lastName,
+    email,
+    phone,
+    address,
+    user_id,
+  });
+  return data;
+};
 
 export const getContactById = async (contactId) => {
   const { data } = await axios.get(
