@@ -1,5 +1,6 @@
 package com._pearls.contactApp.Service;
 
+import com._pearls.contactApp.Dto.ChangePasswordDto;
 import com._pearls.contactApp.Dto.LoginDto;
 import com._pearls.contactApp.Dto.SignupDto;
 import com._pearls.contactApp.Model.User;
@@ -24,6 +25,16 @@ public class UserService {
 
     public List<User> getUsers() {
         return userRepo.findAll();
+    }
+
+    public ChangePasswordDto changePassword(String id, ChangePasswordDto changePasswordDto) {
+        User user = userRepo.findById(id).get();
+
+        if (user.getPassword().equals(changePasswordDto.getCurrentPassword())) {
+            user.setPassword(changePasswordDto.getNewPassword());
+            return changePasswordDto;
+        }
+        return null;
     }
 
     public User createUser(User user) {

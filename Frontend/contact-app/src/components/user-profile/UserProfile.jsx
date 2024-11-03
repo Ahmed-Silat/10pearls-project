@@ -1,8 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
+import Button from "../button/Button";
+import ChangePasswordModal from "../modals/ChangePasswordModal";
 
 const UserProfile = () => {
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] =
+    useState(false);
+
   const userDetails = localStorage.getItem("userData");
   const currentUser = JSON.parse(userDetails);
+
+  const openChangePasswordModal = () => setIsChangePasswordModalOpen(true);
+  const closeChangePasswordModal = () => setIsChangePasswordModalOpen(false);
+
   return (
     <div>
       <div class="px-4 sm:px-0">
@@ -44,11 +53,23 @@ const UserProfile = () => {
           <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
             <dt class="text-sm/6 font-medium text-gray-900"></dt>
             <dd class="mt-2 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-              Change Password
+              <Button
+                name="Change Password"
+                onClick={openChangePasswordModal}
+                className="bg-blue-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition 
+                duration-500 ease-in-out hover:bg-blue-500 rounded-2xl font-semibold text-sm"
+              />
             </dd>
           </div>
         </dl>
       </div>
+      {isChangePasswordModalOpen && (
+        <ChangePasswordModal
+          onClose={closeChangePasswordModal}
+          // userId={currentUser.id}
+          // fetchContacts={() => fetchContacts()}
+        />
+      )}
     </div>
   );
 };

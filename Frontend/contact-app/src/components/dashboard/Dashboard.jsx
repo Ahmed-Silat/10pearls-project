@@ -36,14 +36,24 @@ export default function Dashboard() {
       <div className="flex justify-end mr-6 mt-1">
         <Button
           name="Add Contact"
-          className="bg-blue-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 ease-in-out hover:bg-blue-500 rounded-2xl font-semibold text-sm"
+          className="bg-blue-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 
+          ease-in-out hover:bg-blue-500 rounded-2xl font-semibold text-sm"
           onClick={openAddContactModal}
         />
-        <Button
+        {/* <Button
           name="LOGOUT"
           className="bg-red-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 ease-in-out hover:bg-red-500 rounded-2xl font-semibold text-sm"
           onClick={logout}
-        />
+          /> */}
+        <select defaultValue="" className="bg-blue-400">
+          <option value="" disabled hidden>
+            Filter
+          </option>
+          <option value="">From A-Z</option>
+          <option value="">From Z-A</option>
+          <option value="">Date Old</option>
+          <option value="">Date New</option>
+        </select>
       </div>
 
       <div>

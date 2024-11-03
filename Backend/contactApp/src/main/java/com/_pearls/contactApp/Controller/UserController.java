@@ -1,5 +1,6 @@
 package com._pearls.contactApp.Controller;
 
+import com._pearls.contactApp.Dto.ChangePasswordDto;
 import com._pearls.contactApp.Dto.LoginDto;
 import com._pearls.contactApp.Dto.SignupDto;
 import com._pearls.contactApp.Model.User;
@@ -36,6 +37,11 @@ public class UserController {
     @PostMapping("/login")
     public SignupDto checkEmailPassword(@RequestBody LoginDto loginDto) throws Exception {
         return userService.checkEmailPassword(loginDto);
+    }
+
+    @PutMapping("/changePassword/{id}")
+    public ChangePasswordDto changePassword(@PathVariable String id, @RequestBody ChangePasswordDto changePasswordDto) {
+        return userService.changePassword(id, changePasswordDto);
     }
 
 }
