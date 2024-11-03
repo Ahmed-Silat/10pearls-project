@@ -1,6 +1,7 @@
 package com._pearls.contactApp.Service;
 
 import com._pearls.contactApp.Dto.ContactDto;
+import com._pearls.contactApp.Dto.FilterContactDto;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.ContactRepo;
@@ -9,6 +10,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,8 +28,16 @@ public class ContactService {
     @Autowired
     private UserRepo userRepo;
 
-    public List<Contact> getContactsByUserId(String id) {
-        return contactRepo.findAllByUser_Id(id);
+    public List<Contact> getContactsByUserId(String id, FilterContactDto filterContactDto) {
+        Sort sort = Sort.unsorted();
+        if (filterContactDto != null && filterContactDto.getSortBy() != null) {
+            if (filterContactDto.getSortBy().equalsIgnoreCase("A-Z")) {
+                sort = Sort.by(Sort.Direction.ASC, "firstName");
+            } else if (filterContactDto.getSortBy().equalsIgnoreCase("Z-A")) {
+                sort = Sort.by(Sort.Direction.DESC, "firstName");
+            }
+        }
+        return contactRepo.findAllByUser_Id(id, sort);
     }
 
     public Optional<Contact> getContactsByContactId(String id) {

@@ -1,6 +1,7 @@
 package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Dto.ContactDto;
+import com._pearls.contactApp.Dto.FilterContactDto;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Service.ContactService;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +20,10 @@ public class ContactController {
     private ContactService contactService;
 
     @GetMapping("/user/{id}")
-    public List<Contact> getContactsByUserId(@PathVariable String id) {
-        return contactService.getContactsByUserId(id);
+    public List<Contact> getContactsByUserId(@PathVariable String id, @RequestParam(required = false) String sortBy) {
+        FilterContactDto filterContactDto = new FilterContactDto();
+        filterContactDto.setSortBy(sortBy);
+        return contactService.getContactsByUserId(id, filterContactDto);
     }
 
     @GetMapping("/{id}")
