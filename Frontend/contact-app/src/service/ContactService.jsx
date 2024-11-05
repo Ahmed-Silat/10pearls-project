@@ -65,3 +65,10 @@ export const deleteContact = async (contactId) => {
     `http://localhost:8080/contact/${contactId}`
   );
 };
+
+export const changePassword = async (userId, currentPassword, newPassword) => {
+  const { data } = await axios.put(
+    `http://localhost:8080/user/changePassword/${userId}`,
+    { currentPassword, newPassword }
+  );
+};

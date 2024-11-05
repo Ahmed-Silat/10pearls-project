@@ -66,8 +66,7 @@ const UserProfile = () => {
       {isChangePasswordModalOpen && (
         <ChangePasswordModal
           onClose={closeChangePasswordModal}
-          // userId={currentUser.id}
-          // fetchContacts={() => fetchContacts()}
+          userId={currentUser.id}
         />
       )}
     </div>
