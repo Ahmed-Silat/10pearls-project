@@ -20,10 +20,10 @@ public class ContactController {
     private ContactService contactService;
 
     @GetMapping("/user/{id}")
-    public List<Contact> getContactsByUserId(@PathVariable String id, @RequestParam(required = false) String sortBy) {
+    public List<Contact> getContactsByUserId(@PathVariable String id, @RequestParam(required = false) String search, @RequestParam(required = false) String sortBy) {
         FilterContactDto filterContactDto = new FilterContactDto();
         filterContactDto.setSortBy(sortBy);
-        return contactService.getContactsByUserId(id, filterContactDto);
+        return contactService.getContactsByUserId(id, search, filterContactDto);
     }
 
     @GetMapping("/{id}")

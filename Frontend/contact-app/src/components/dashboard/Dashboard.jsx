@@ -8,7 +8,7 @@ import AddContactModal from "../modals/AddContactModal";
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
-  const navigate = useNavigate();
+  const [filter, setFilter] = useState("");
 
   const openAddContactModal = () => setIsAddContactModalOpen(true);
   const closeAddContactModal = () => setIsAddContactModalOpen(false);
@@ -22,9 +22,12 @@ export default function Dashboard() {
     console.log(data);
   };
 
-  const logout = () => {
-    localStorage.removeItem("userData");
-    navigate("/login");
+  const handleFilterChange = async (event) => {
+    const filterBy = event.target.value;
+    setFilter(filterBy);
+    const data = await getContactsByUserId(currentUser.id, filterBy);
+    setContact(data);
+    console.log(filterBy);
   };
 
   useEffect(() => {
@@ -40,19 +43,19 @@ export default function Dashboard() {
           ease-in-out hover:bg-blue-500 rounded-2xl font-semibold text-sm"
           onClick={openAddContactModal}
         />
-        {/* <Button
-          name="LOGOUT"
-          className="bg-red-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 ease-in-out hover:bg-red-500 rounded-2xl font-semibold text-sm"
-          onClick={logout}
-          /> */}
-        <select defaultValue="" className="bg-blue-400">
+        <select
+          defaultValue=""
+          className="bg-blue-400"
+          value={filter}
+          onChange={handleFilterChange}
+        >
           <option value="" disabled hidden>
             Filter
           </option>
-          <option value="">From A-Z</option>
-          <option value="">From Z-A</option>
-          <option value="">Date Old</option>
-          <option value="">Date New</option>
+          <option value="A-Z">From A-Z</option>
+          <option value="Z-A">From Z-A</option>
+          <option value="oldDate">Date Old</option>
+          <option value="newDate">Date New</option>
         </select>
       </div>
 
