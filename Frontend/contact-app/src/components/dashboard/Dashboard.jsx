@@ -4,12 +4,17 @@ import { getContactsByUserId } from "../../service/ContactService";
 import ContactCard from "../ContactCard/ContactCard";
 import AddContactModal from "../modals/AddContactModal";
 import { useSearchParams } from "react-router-dom";
+import { useDebouncedValue } from "../../hooks/useDebounceHook";
 
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const debouncedSearchTerm = useDebouncedValue(searchParams, 2000);
+
   const sortBy = searchParams.get("sortBy") || "";
+  const search = searchParams.get("search") || "";
+
   const [filter, setFilter] = useState(sortBy);
 
   const openAddContactModal = () => setIsAddContactModalOpen(true);
@@ -18,25 +23,27 @@ export default function Dashboard() {
   const userDetails = localStorage.getItem("userData");
   const currentUser = JSON.parse(userDetails);
 
-  const fetchContacts = async (sortBy) => {
-    const data = (await getContactsByUserId(currentUser.id, sortBy)) || [];
+  const fetchContacts = async (sortBy, search) => {
+    const data =
+      (await getContactsByUserId(currentUser.id, sortBy, search)) || [];
     setContact(data);
     console.log(data);
   };
 
   const handleFilterChange = async (event) => {
-    const filterBy = event.target.value;
-    setFilter(filterBy);
-    setSearchParams({ sortBy: filterBy });
-    fetchContacts(filterBy);
-    // const data = await getContactsByUserId(currentUser.id, filterBy);
-    // setContact(data);
-    console.log(filterBy);
+    const selectedFilter = event.target.value;
+    setFilter(selectedFilter);
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set("sortBy", selectedFilter);
+      return newParams;
+    });
+    fetchContacts(selectedFilter);
   };
 
   useEffect(() => {
-    fetchContacts(sortBy);
-  }, [sortBy]);
+    fetchContacts(sortBy, search);
+  }, [debouncedSearchTerm]);
 
   return (
     <div>

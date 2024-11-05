@@ -9,14 +9,12 @@ import {
 } from "@headlessui/react";
 import { Bars3Icon, BellIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { Outlet, useLocation, useNavigate } from "react-router";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   MagnifyingGlassIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
-import { useRef } from "react";
-
-// const navigation = [{ name: "Dashboard", href: "/", current: true }];
+import { useRef, useState } from "react";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -26,6 +24,10 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const inputRef = useRef(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const search = searchParams.get("search") || "";
 
   const focusInput = () => {
     inputRef.current?.focus();
@@ -34,6 +36,16 @@ export default function Header() {
   const logout = () => {
     localStorage.removeItem("userData");
     navigate("/login");
+  };
+
+  const handleSearchInputChange = (event) => {
+    const searchValue = event.target.value;
+    setSearchInput(searchValue);
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set("search", searchValue);
+      return newParams;
+    });
   };
 
   return (
@@ -89,7 +101,9 @@ export default function Header() {
                 <input
                   ref={inputRef}
                   type="text"
+                  value={searchInput}
                   placeholder="Search contacts"
+                  onChange={handleSearchInputChange}
                   className="pl-10 pr-4 py-1 border rounded-md w-80 bg-slate-700 border-slate-600 
                 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 />
