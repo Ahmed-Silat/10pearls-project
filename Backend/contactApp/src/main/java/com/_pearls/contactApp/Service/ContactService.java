@@ -39,30 +39,11 @@ public class ContactService {
             }
         }
 
-        List<Contact> contacts = contactRepo.findAllByUser_Id(userId, sort);
-
-        if ((search != null && !search.isEmpty())) {
-            List<Contact> filteredContacts = new ArrayList<>();
-
-            for (int i = 0; i < contacts.size(); i++) {
-                Contact contact = contacts.get(i);
-
-                boolean matchesFirstName = contact.getFirstName() != null && (contact.getFirstName().equalsIgnoreCase(search) || contact.getFirstName().toLowerCase().contains(search.toLowerCase()));
-
-                boolean matchesLastName = contact.getLastName() != null && (contact.getLastName().equalsIgnoreCase(search) || contact.getLastName().toLowerCase().contains(search.toLowerCase()));
-
-                boolean matchesEmail = contact.getEmail() != null && (contact.getEmail().equalsIgnoreCase(search) || contact.getEmail().toLowerCase().contains(search.toLowerCase()));
-
-                boolean matchesAddress = contact.getAddress() != null && (contact.getAddress().equalsIgnoreCase(search) || contact.getAddress().toLowerCase().contains(search.toLowerCase()));
-
-                boolean matchesPhoneNo = contact.getPhone() != null && (contact.getPhone().equalsIgnoreCase(search) || contact.getPhone().toLowerCase().contains(search.toLowerCase()));
-
-                if (matchesFirstName || matchesLastName || matchesEmail || matchesAddress || matchesPhoneNo) {
-                    filteredContacts.add(contact);
-                }
-            }
-            return filteredContacts;
+        if(search!=null && !search.isEmpty()){
+            return contactRepo.findAllByUserIdAndSearch(userId,search,sort);
         }
+
+        List<Contact> contacts = contactRepo.findAllByUser_Id(userId, sort);
 
         return contacts;
 

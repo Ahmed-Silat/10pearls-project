@@ -5,6 +5,7 @@ import ContactCard from "../ContactCard/ContactCard";
 import AddContactModal from "../modals/AddContactModal";
 import { useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebounceHook";
+import Pagination from "../pagination/Pagination";
 
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
@@ -99,6 +100,7 @@ export default function Dashboard() {
           fetchContacts={() => fetchContacts()}
         />
       )}
+      <Pagination />
     </div>
   );
 }
