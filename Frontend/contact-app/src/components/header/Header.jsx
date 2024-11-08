@@ -24,10 +24,10 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const inputRef = useRef(null);
-  const [searchInput, setSearchInput] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get("search") || "";
+  const [searchInput, setSearchInput] = useState(search);
 
   const focusInput = () => {
     inputRef.current?.focus();

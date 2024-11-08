@@ -10,6 +10,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +31,7 @@ public class ContactService {
     @Autowired
     private UserRepo userRepo;
 
-    public List<Contact> getContactsByUserId(String userId, String search, FilterContactDto filterContactDto) {
+    public List<Contact> getContactsByUserId(String userId, String search, FilterContactDto filterContactDto, int page, int size) {
         Sort sort = Sort.unsorted();
         if (filterContactDto != null && filterContactDto.getSortBy() != null) {
             if (filterContactDto.getSortBy().equalsIgnoreCase("A-Z")) {
@@ -39,11 +41,18 @@ public class ContactService {
             }
         }
 
-        if(search!=null && !search.isEmpty()){
-            return contactRepo.findAllByUserIdAndSearch(userId,search,sort);
+        page = page - 1;
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        if (search != null && !search.isEmpty()) {
+            return contactRepo.findAllByUserIdAndSearch(userId, search, pageable);
         }
 
-        List<Contact> contacts = contactRepo.findAllByUser_Id(userId, sort);
+
+        List<Contact> contacts = contactRepo.findAllByUser_Id(userId, pageable);
+
+        int totalPageCount=contacts.size();
 
         return contacts;
 
