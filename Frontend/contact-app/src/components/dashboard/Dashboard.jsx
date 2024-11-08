@@ -11,10 +11,9 @@ export default function Dashboard() {
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const debouncedSearchTerm = useDebouncedValue(searchParams, 2000);
-
   const sortBy = searchParams.get("sortBy") || "";
   const search = searchParams.get("search") || "";
+  const debouncedSearchTerm = useDebouncedValue(search, 2000);
 
   const [filter, setFilter] = useState(sortBy);
 
@@ -37,9 +36,9 @@ export default function Dashboard() {
     setSearchParams((prevParams) => {
       const newParams = new URLSearchParams(prevParams);
       newParams.set("sortBy", selectedFilter);
+      fetchContacts(newParams.get("sortBy"), newParams.get("search"));
       return newParams;
     });
-    fetchContacts(selectedFilter);
   };
 
   useEffect(() => {
