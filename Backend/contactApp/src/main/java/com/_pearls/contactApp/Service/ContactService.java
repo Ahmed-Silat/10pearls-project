@@ -52,7 +52,7 @@ public class ContactService {
 
         List<Contact> contacts = contactRepo.findAllByUser_Id(userId, pageable);
 
-        int totalPageCount=contacts.size();
+        int totalPageCount = contacts.size();
 
         return contacts;
 
