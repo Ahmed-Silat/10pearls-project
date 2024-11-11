@@ -80,7 +80,6 @@ public class UserControllerTest {
                 .address("London")
                 .build();
 
-//        Mockito.when(userService.createUser(record)).thenReturn(record);
 
         Mockito.when(userService.createUser(Mockito.any(User.class))).thenReturn(record);
 
