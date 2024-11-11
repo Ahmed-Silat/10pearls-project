@@ -40,7 +40,6 @@ public class UserService {
     public User createUser(User user) {
         userRepo.save(user);
         return user;
-//        return "New User Created...";
     }
 
     public User updateUser(User user, String id) {
@@ -52,7 +51,6 @@ public class UserService {
         updatedUser.setAddress(user.getAddress());
         updatedUser.setPhone(user.getPhone());
         return userRepo.save(updatedUser);
-//        return "User updated with id: " + id;
     }
 
     public SignupDto checkEmailPassword(LoginDto loginDto) throws Exception {
