@@ -1,11 +1,17 @@
 import axios from "axios";
 import { API_URL } from "./Constants";
 
-export const getContactsByUserId = async (userId, sortBy, search) => {
+export const getContactsByUserId = async (
+  userId,
+  sortBy,
+  search,
+  page,
+  size
+) => {
   const { data } = await axios.get(
     `http://localhost:8080/contact/user/${userId}`,
     {
-      params: { sortBy, search },
+      params: { sortBy, search, page, size },
     }
   );
   console.log("Data fetched successfully");

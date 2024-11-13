@@ -1,11 +1,53 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
 import { Outlet } from "react-router";
 import { useSearchParams } from "react-router-dom";
+import { getContactById } from "../../service/ContactService";
+import { useEffect, useState } from "react";
 
-export default function Pagination() {
-
+export default function Pagination(props) {
+  const [totalContacts, setTotalContacts] = useState();
+  const [totalPages, setTotalPages] = useState();
+  const [contactsPerPage, setContactsPerPage] = useState();
   const [searchParams, setSearchParams] = useSearchParams();
-  const pageNo = searchParams.get("page") || "1";
+  const page = searchParams.get("page") || "1";
+  const [currentPage, setCurrentPage] = useState(page);
+
+  // const userDetails = localStorage.getItem("userData");
+  // const currentUser = JSON.parse(userDetails);
+
+  // const getPageData = async () => {
+  //   const data = await getContactById(currentUser.id);
+  // };
+
+  const handlePageChange = (event) => {
+    const pageNo = event.target.value;
+    setCurrentPage(pageNo);
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set("page", pageNo);
+      return newParams;
+    });
+  };
+
+  const handleSizeChange = (event) => {
+    const size = event.target.value;
+    setContactsPerPage(size);
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set("size", size);
+      return newParams;
+    });
+  };
+
+  useEffect(() => {
+    console.log("pagination component: " + props.paginationObject);
+    if (props.paginationObject) {
+      setContactsPerPage(props.paginationObject.contactsPerPage);
+      setCurrentPage(props.paginationObject.currentPage);
+      setTotalContacts(props.paginationObject.totalContacts);
+      setTotalPages(props.paginationObject.totalPages);
+    }
+  }, [props.paginationObject]);
 
   return (
     <div>
