@@ -10,9 +10,16 @@ import Pagination from "../pagination/Pagination";
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
+  // const [totalContacts, setTotalContacts] = useState();
+  // const [currentPage, setCurrentPage] = useState();
+  // const [totalPages, setTotalPages] = useState();
+  // const [contactsPerPage, setContactsPerPage] = useState();
+  const [paginationData, setPaginationData] = useState();
   const [searchParams, setSearchParams] = useSearchParams();
   const sortBy = searchParams.get("sortBy") || "";
   const search = searchParams.get("search") || "";
+  const page = searchParams.get("page") || "";
+  const size = searchParams.get("size") || "";
   const debouncedSearchTerm = useDebouncedValue(search, 2000);
 
   const [filter, setFilter] = useState(sortBy);
@@ -23,10 +30,13 @@ export default function Dashboard() {
   const userDetails = localStorage.getItem("userData");
   const currentUser = JSON.parse(userDetails);
 
-  const fetchContacts = async (sortBy, search) => {
+  const fetchContacts = async (sortBy, search, page, size) => {
     const data =
-      (await getContactsByUserId(currentUser.id, sortBy, search)) || [];
+      (await getContactsByUserId(currentUser.id, sortBy, search, page, size)) ||
+      [];
     setContact(data.contact);
+    delete data.contact;
+    setPaginationData(data);
     console.log(data);
   };
 
@@ -36,13 +46,18 @@ export default function Dashboard() {
     setSearchParams((prevParams) => {
       const newParams = new URLSearchParams(prevParams);
       newParams.set("sortBy", selectedFilter);
-      fetchContacts(newParams.get("sortBy"), newParams.get("search"));
+      fetchContacts(
+        newParams.get("sortBy"),
+        newParams.get("search"),
+        newParams.get("page"),
+        newParams.get("size")
+      );
       return newParams;
     });
   };
 
   useEffect(() => {
-    fetchContacts(sortBy, search);
+    fetchContacts(sortBy, search, page, size);
   }, [debouncedSearchTerm]);
 
   return (
@@ -99,7 +114,7 @@ export default function Dashboard() {
           fetchContacts={() => fetchContacts()}
         />
       )}
-      <Pagination />
+      <Pagination paginationObject={paginationData} />
     </div>
   );
 }
