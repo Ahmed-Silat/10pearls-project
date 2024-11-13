@@ -2,6 +2,7 @@ package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.FilterContactDto;
+import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Service.ContactService;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class ContactController {
     private ContactService contactService;
 
     @GetMapping("/user/{id}")
-    public List<Contact> getContactsByUserId(@PathVariable String id, @RequestParam(required = false) String search, @RequestParam(required = false) String sortBy, @RequestParam(value = "page", defaultValue = "1") int page, @RequestParam(value = "size", defaultValue = "10") int size) {
+    public PaginationDto getContactsByUserId(@PathVariable String id, @RequestParam(required = false) String search, @RequestParam(required = false) String sortBy, @RequestParam(value = "page", defaultValue = "1") int page, @RequestParam(value = "size", defaultValue = "10") int size) {
         FilterContactDto filterContactDto = new FilterContactDto();
         filterContactDto.setSortBy(sortBy);
         return contactService.getContactsByUserId(id, search, filterContactDto, page, size);
