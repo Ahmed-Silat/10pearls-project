@@ -10,10 +10,6 @@ import Pagination from "../pagination/Pagination";
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
-  // const [totalContacts, setTotalContacts] = useState();
-  // const [currentPage, setCurrentPage] = useState();
-  // const [totalPages, setTotalPages] = useState();
-  // const [contactsPerPage, setContactsPerPage] = useState();
   const [paginationData, setPaginationData] = useState();
   const [searchParams, setSearchParams] = useSearchParams();
   const sortBy = searchParams.get("sortBy") || "";
@@ -99,7 +95,7 @@ export default function Dashboard() {
                 email={value.email}
                 address={value.address}
                 userId={value.user.id}
-                fetchContacts={() => fetchContacts()}
+                fetchContacts={() => fetchContacts(sortBy, search, page, size)}
                 contactId={value.id}
               />
             );
@@ -111,10 +107,13 @@ export default function Dashboard() {
         <AddContactModal
           onClose={closeAddContactModal}
           userId={currentUser.id}
-          fetchContacts={() => fetchContacts()}
+          fetchContacts={() => fetchContacts(sortBy, search, page, size)}
         />
       )}
-      <Pagination paginationObject={paginationData} />
+      <Pagination
+        paginationObject={paginationData}
+        fetchContacts={fetchContacts}
+      />
     </div>
   );
 }

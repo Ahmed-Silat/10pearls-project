@@ -96,7 +96,7 @@ export default function Header() {
               </div>
             </div>
 
-            <div className="flex justify-center items-center h-screen w-full">
+            <div className="flex justify-center items-center w-full">
               <div className="relative flex items-center">
                 <input
                   ref={inputRef}
