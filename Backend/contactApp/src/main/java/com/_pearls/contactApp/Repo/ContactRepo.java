@@ -20,4 +20,6 @@ public interface ContactRepo extends JpaRepository<Contact, String> {
     List<Contact> findAllByUser_Id(String userId, Pageable pageable);
 
     Optional<Contact> findAllById(String contactId);
+
+    List<Contact> findContactsByUserId(String userId);
 }

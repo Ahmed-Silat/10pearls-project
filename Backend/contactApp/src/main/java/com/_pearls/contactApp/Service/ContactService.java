@@ -2,6 +2,7 @@ package com._pearls.contactApp.Service;
 
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.FilterContactDto;
+import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.ContactRepo;
@@ -31,7 +32,7 @@ public class ContactService {
     @Autowired
     private UserRepo userRepo;
 
-    public List<Contact> getContactsByUserId(String userId, String search, FilterContactDto filterContactDto, int page, int size) {
+    public PaginationDto getContactsByUserId(String userId, String search, FilterContactDto filterContactDto, int page, int size) {
         Sort sort = Sort.unsorted();
         if (filterContactDto != null && filterContactDto.getSortBy() != null) {
             if (filterContactDto.getSortBy().equalsIgnoreCase("A-Z")) {
@@ -41,21 +42,44 @@ public class ContactService {
             }
         }
 
+        List<Contact> allContacts = contactRepo.findContactsByUserId(userId);
+
+        System.out.println(allContacts.size());
+
+        double totalPages = totalPagesCount(allContacts.size(), size);
+
+        System.out.println(totalPages);
+
+        PaginationDto paginationDto = new PaginationDto();
+        paginationDto.setTotalContacts(allContacts.size());
+        paginationDto.setContactsPerPage(size);
+        paginationDto.setCurrentPage(page);
+        paginationDto.setTotalPages(totalPages);
+
         page = page - 1;
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
         if (search != null && !search.isEmpty()) {
-            return contactRepo.findAllByUserIdAndSearch(userId, search, pageable);
+            List<Contact> contactList = contactRepo.findAllByUserIdAndSearch(userId, search, pageable);
+            paginationDto.setContact(contactList);
+            return paginationDto;
         }
 
-
         List<Contact> contacts = contactRepo.findAllByUser_Id(userId, pageable);
+        paginationDto.setContact(contacts);
+        return paginationDto;
 
-        int totalPageCount = contacts.size();
+    }
 
-        return contacts;
-
+    public double totalPagesCount(double totalNoOfContacts, double contactsPerPage) {
+        double totalPagesCount = 0;
+        if ((totalNoOfContacts % contactsPerPage) != 0) {
+            totalPagesCount = totalNoOfContacts / contactsPerPage;
+            return Math.ceil(totalPagesCount);
+        }
+        totalPagesCount = totalNoOfContacts / contactsPerPage;
+        return totalPagesCount;
     }
 
     public Optional<Contact> getContactsByContactId(String id) {
