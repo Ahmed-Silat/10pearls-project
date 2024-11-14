@@ -27,6 +27,10 @@ public class UserService {
         return userRepo.findAll();
     }
 
+    public Optional<User> getCurrentUser(String id) {
+        return userRepo.findById(id);
+    }
+
     public ChangePasswordDto changePassword(String id, ChangePasswordDto changePasswordDto) {
         User user = userRepo.findById(id).get();
 
