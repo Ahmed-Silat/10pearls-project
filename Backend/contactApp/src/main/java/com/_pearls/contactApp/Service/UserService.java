@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,6 +24,8 @@ public class UserService {
     @Autowired
     private UserRepo userRepo;
 
+    private final PasswordEncoder passwordEncoder;
+
     public List<User> getUsers() {
         return userRepo.findAll();
     }
@@ -34,14 +37,16 @@ public class UserService {
     public ChangePasswordDto changePassword(String id, ChangePasswordDto changePasswordDto) {
         User user = userRepo.findById(id).get();
 
-        if (user.getPassword().equals(changePasswordDto.getCurrentPassword())) {
-            user.setPassword(changePasswordDto.getNewPassword());
+        if (passwordEncoder.matches(changePasswordDto.getCurrentPassword(), user.getPassword())) {
+            user.setPassword(passwordEncoder.encode(changePasswordDto.getNewPassword()));
             return changePasswordDto;
         }
         return null;
     }
 
     public User createUser(User user) {
+        String hashedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashedPassword);
         userRepo.save(user);
         return user;
     }
@@ -51,9 +56,14 @@ public class UserService {
         updatedUser.setFirstName(user.getFirstName());
         updatedUser.setLastName(user.getLastName());
         updatedUser.setEmail(user.getEmail());
-        updatedUser.setPassword(user.getPassword());
+//        updatedUser.setPassword(user.getPassword());
         updatedUser.setAddress(user.getAddress());
         updatedUser.setPhone(user.getPhone());
+
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            updatedUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+
         return userRepo.save(updatedUser);
     }
 
@@ -66,7 +76,7 @@ public class UserService {
 
         User currentUser = existingUser.get();
 
-        if (!currentUser.getPassword().equals(loginDto.getPassword())) {
+        if (!passwordEncoder.matches(loginDto.getPassword(), currentUser.getPassword())) {
             throw new Exception("Password is not correct");
         }
 
@@ -79,6 +89,5 @@ public class UserService {
         signUpDto.setAddress(currentUser.getAddress());
 
         return signUpDto;
-
     }
 }
