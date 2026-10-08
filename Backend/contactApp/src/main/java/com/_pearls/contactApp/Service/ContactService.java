@@ -1,133 +1,121 @@
 package com._pearls.contactApp.Service;
 
 import com._pearls.contactApp.Dto.ContactDto;
-import com._pearls.contactApp.Dto.FilterContactDto;
+import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
+import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
+import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.ContactRepo;
 import com._pearls.contactApp.Repo.UserRepo;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import static com._pearls.contactApp.Util.TextUtils.normalize;
+import static com._pearls.contactApp.Util.TextUtils.trim;
 
 @Service
 @Slf4j
-@Transactional(rollbackOn = Exception.class)
 @RequiredArgsConstructor
 public class ContactService {
 
-    @Autowired
-    private ContactRepo contactRepo;
+    private final ContactRepo contactRepo;
+    private final UserRepo userRepo;
 
-    @Autowired
-    private UserRepo userRepo;
+    private static final String SORT_AZ = "A-Z";
+    private static final String SORT_ZA = "Z-A";
 
-    public PaginationDto getContactsByUserId(String userId, String search, FilterContactDto filterContactDto, int page, int size) {
-        Sort sort = Sort.unsorted();
-        if (filterContactDto != null && filterContactDto.getSortBy() != null) {
-            if (filterContactDto.getSortBy().equalsIgnoreCase("A-Z")) {
-                sort = Sort.by(Sort.Direction.ASC, "firstName");
-            } else if (filterContactDto.getSortBy().equalsIgnoreCase("Z-A")) {
-                sort = Sort.by(Sort.Direction.DESC, "firstName");
-            }
+    @Transactional(readOnly = true)
+    public PaginationDto<ContactDto> getContactsByUserId(String userId, String search, String sortBy, int page, int size) {
+        Sort sort = sortBy != null && SORT_ZA.equalsIgnoreCase(sortBy)
+                ? Sort.by(Sort.Direction.DESC, "firstName")
+                : Sort.by(Sort.Direction.ASC, "firstName");
+
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        Page<Contact> result;
+        if (search != null && !search.isBlank()) {
+            // Escape LIKE wildcards so user input cannot inject % or _.
+            String escaped = search.trim()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_");
+            result = contactRepo.searchByUserId(userId, escaped + "%", pageable);
+        } else {
+            result = contactRepo.findAllByUser_Id(userId, pageable);
         }
 
-        List<Contact> allContacts = contactRepo.findContactsByUserId(userId);
+        PaginationDto<ContactDto> dto = new PaginationDto<>();
+        dto.setContacts(result.getContent().stream().map(this::toDto).toList());
+        dto.setTotalContacts(result.getTotalElements());
+        dto.setTotalPages(result.getTotalPages());
+        dto.setContactsPerPage(size);
+        dto.setCurrentPage(page);
+        return dto;
+    }
 
-        System.out.println(allContacts.size());
+    @Transactional(readOnly = true)
+    public ContactDto getContactByIdAndUser(String id, String userId) {
+        return toDto(findOwnedContact(id, userId));
+    }
 
-        double totalPages = totalPagesCount(allContacts.size(), size);
+    @Transactional
+    public ContactDto createContact(String userId, ContactRequest request) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
+        Contact contact = Contact.builder()
+                .firstName(normalize(request.getFirstName()))
+                .lastName(normalize(request.getLastName()))
+                .email(normalize(request.getEmail()))
+                .phone(trim(request.getPhone()))
+                .address(trim(request.getAddress()))
+                .user(user)
+                .build();
+        return toDto(contactRepo.save(contact));
+    }
 
-        System.out.println(totalPages);
+    @Transactional
+    public ContactDto updateContact(String id, String userId, ContactRequest request) {
+        Contact contact = findOwnedContact(id, userId);
+        contact.setFirstName(normalize(request.getFirstName()));
+        contact.setLastName(normalize(request.getLastName()));
+        contact.setEmail(normalize(request.getEmail()));
+        contact.setPhone(trim(request.getPhone()));
+        contact.setAddress(trim(request.getAddress()));
+        return toDto(contactRepo.save(contact));
+    }
 
-        PaginationDto paginationDto = new PaginationDto();
-        paginationDto.setTotalContacts(allContacts.size());
-        paginationDto.setContactsPerPage(size);
-        paginationDto.setCurrentPage(page);
-        paginationDto.setTotalPages(totalPages);
+    @Transactional
+    public void deleteContact(String id, String userId) {
+        Contact contact = findOwnedContact(id, userId);
+        contactRepo.delete(contact);
+    }
 
-        page = page - 1;
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        if (search != null && !search.isEmpty()) {
-            List<Contact> contactList = contactRepo.findAllByUserIdAndSearch(userId, search, pageable);
-            paginationDto.setContact(contactList);
-            return paginationDto;
+    /** Loads a contact and checks that it belongs to the given user. */
+    private Contact findOwnedContact(String id, String userId) {
+        Contact contact = contactRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id " + id));
+        if (!contact.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("You do not have access to this contact");
         }
-
-        List<Contact> contacts = contactRepo.findAllByUser_Id(userId, pageable);
-        paginationDto.setContact(contacts);
-        return paginationDto;
-
-    }
-
-    public double totalPagesCount(double totalNoOfContacts, double contactsPerPage) {
-        double totalPagesCount = 0;
-        if ((totalNoOfContacts % contactsPerPage) != 0) {
-            totalPagesCount = totalNoOfContacts / contactsPerPage;
-            return Math.ceil(totalPagesCount);
-        }
-        totalPagesCount = totalNoOfContacts / contactsPerPage;
-        return totalPagesCount;
-    }
-
-    public Optional<Contact> getContactsByContactId(String id) {
-        return contactRepo.findAllById(id);
-    }
-
-
-    public Contact createContact(ContactDto contactDto) {
-        Contact contact = new Contact();
-        contact.setFirstName(contactDto.getFirstName());
-        contact.setLastName(contactDto.getLastName());
-        contact.setEmail(contactDto.getEmail());
-        contact.setPhone(contactDto.getPhone());
-        contact.setAddress(contactDto.getAddress());
-        User user = userRepo.findById(contactDto.getUser_id()).get();
-        contact.setUser(user);
-        contactRepo.save(contact);
         return contact;
     }
 
-    public Contact updateContact(String id, ContactDto contactDto) {
-        Contact updatedContact = contactRepo.findById(id).get();
-//        if (updatedContact!=null) {
-//            throw new RuntimeException("No contacts found for the given user ID " + id);
-//        }
-        updatedContact.setFirstName(contactDto.getFirstName());
-        updatedContact.setLastName(contactDto.getLastName());
-        updatedContact.setEmail(contactDto.getEmail());
-        updatedContact.setPhone(contactDto.getPhone());
-        updatedContact.setAddress(contactDto.getAddress());
-        User user = userRepo.findById(contactDto.getUser_id()).get();
-        updatedContact.setUser(user);
-        contactRepo.save(updatedContact);
-        return updatedContact;
+    private ContactDto toDto(Contact contact) {
+        ContactDto dto = new ContactDto();
+        dto.setId(contact.getId());
+        dto.setFirstName(contact.getFirstName());
+        dto.setLastName(contact.getLastName());
+        dto.setEmail(contact.getEmail());
+        dto.setPhone(contact.getPhone());
+        dto.setAddress(contact.getAddress());
+        return dto;
     }
-
-
-    public Contact deleteContact(String id) {
-        Contact deleteContact = contactRepo.findById(id).orElse(null);
-
-        if (deleteContact != null) {
-            Contact contact = deleteContact;
-            contact.setUser(null);
-            contactRepo.save(contact);
-            contactRepo.delete(contact);
-            return deleteContact;
-        }
-        return null;
-    }
-
 }

@@ -1,14 +1,13 @@
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
-import { Outlet } from "react-router";
-import { useSearchParams } from "react-router-dom";
-import { getContactById } from "../../service/ContactService";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "../icons/Icons";
 
 export default function Pagination(props) {
   const [totalContacts, setTotalContacts] = useState();
   const [totalPages, setTotalPages] = useState();
   const [contactsPerPage, setContactsPerPage] = useState();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = useSearchParams()[0];
+  const setSearchParams = useSearchParams()[1];
   const page = searchParams.get("page") || "1";
   const [currentPage, setCurrentPage] = useState(page);
 
@@ -44,13 +43,17 @@ export default function Pagination(props) {
   };
 
   const handlePrevious = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-    handlePageChange(currentPage - 1);
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      handlePageChange(currentPage - 1);
+    }
   };
 
   const handleNext = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-    handlePageChange(currentPage + 1);
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+      handlePageChange(currentPage + 1);
+    }
   };
 
   const handlePageSizeChange = (event) => {
@@ -60,7 +63,6 @@ export default function Pagination(props) {
   };
 
   useEffect(() => {
-    console.log("pagination component: " + props.paginationObject);
     if (props.paginationObject) {
       setContactsPerPage(props.paginationObject.contactsPerPage);
       setCurrentPage(props.paginationObject.currentPage);
@@ -69,84 +71,90 @@ export default function Pagination(props) {
     }
   }, [props.paginationObject]);
 
+  const btnBase =
+    "relative inline-flex items-center justify-center min-w-[2.5rem] h-10 px-3 text-sm font-medium transition-colors focus:z-10 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed";
+
   return (
-    <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-      <div className="flex flex-1 justify-between sm:hidden">
+    <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl bg-white px-4 py-4 shadow-card ring-1 ring-slate-200/70 sm:flex-row sm:px-6">
+      <div className="flex w-full justify-between sm:hidden">
         <button
           onClick={handlePrevious}
           disabled={currentPage === 1}
-          className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className={`${btnBase} rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
         >
           Previous
         </button>
         <button
           onClick={handleNext}
           disabled={currentPage === totalPages}
-          className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className={`${btnBase} ml-3 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
         >
           Next
         </button>
       </div>
-      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-gray-700">
-            Showing{" "}
-            <span className="font-medium">
-              {(currentPage - 1) * contactsPerPage + 1}
-            </span>{" "}
-            to{" "}
-            <span className="font-medium">
-              {Math.min(currentPage * contactsPerPage, totalContacts)}
-            </span>{" "}
-            of <span className="font-medium">{totalContacts}</span> contacts
-          </p>
-        </div>
-        <div>
-          <select
-            value={contactsPerPage}
-            onChange={handlePageSizeChange}
-            className="mr-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
-          >
-            {[3, 5, 10, 15].map((size) => (
-              <option key={size} value={size}>
-                {size} / page
-              </option>
-            ))}
-          </select>
-          <nav
-            aria-label="Pagination"
-            className="isolate inline-flex -space-x-px rounded-md shadow-sm"
-          >
+
+      <div className="hidden w-full sm:flex sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-500">
+          Showing{" "}
+          <span className="font-semibold text-slate-700">
+            {(currentPage - 1) * contactsPerPage + 1}
+          </span>{" "}
+          –{" "}
+          <span className="font-semibold text-slate-700">
+            {Math.min(currentPage * contactsPerPage, totalContacts)}
+          </span>{" "}
+          of <span className="font-semibold text-slate-700">{totalContacts}</span>{" "}
+          contacts
+        </p>
+
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <select
+              value={contactsPerPage}
+              onChange={handlePageSizeChange}
+              className="appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-4 pr-9 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            >
+              {[3, 5, 10, 15].map((size) => (
+                <option key={size} value={size}>
+                  {size} / page
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+
+          <nav aria-label="Pagination" className="isolate inline-flex gap-1">
             <button
               onClick={handlePrevious}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 disabled:opacity-50"
+              aria-label="Previous page"
+              className={`${btnBase} rounded-xl border border-slate-300 bg-white text-slate-500 hover:bg-slate-50`}
             >
-              <span className="sr-only">Previous</span>
-              <ChevronLeftIcon aria-hidden="true" className="h-5 w-5" />
+              <ChevronLeftIcon className="h-4 w-4" />
             </button>
-            {Array.from({ length: Math.min(totalPages) }, (_, i) => i + 1).map(
-              (page) => (
+            {Array.from({ length: totalPages || 0 }, (_, i) => i + 1).map(
+              (pageNo) => (
                 <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                    page === currentPage
-                      ? "z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                      : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  key={pageNo}
+                  onClick={() => handlePageChange(pageNo)}
+                  aria-current={pageNo === currentPage ? "page" : undefined}
+                  className={`${btnBase} rounded-xl ${
+                    pageNo === Number(currentPage)
+                      ? "bg-sky-600 font-semibold text-white shadow-md shadow-sky-600/25"
+                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  {page}
+                  {pageNo}
                 </button>
               )
             )}
             <button
               onClick={handleNext}
               disabled={currentPage === totalPages}
-              className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 disabled:opacity-50"
+              aria-label="Next page"
+              className={`${btnBase} rounded-xl border border-slate-300 bg-white text-slate-500 hover:bg-slate-50`}
             >
-              <span className="sr-only">Next</span>
-              <ChevronRightIcon aria-hidden="true" className="h-5 w-5" />
+              <ChevronRightIcon className="h-4 w-4" />
             </button>
           </nav>
         </div>

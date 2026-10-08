@@ -1,37 +1,44 @@
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Outlet } from "react-router";
 import {
-  Disclosure,
-  DisclosureButton,
-  DisclosurePanel,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuItems,
-} from "@headlessui/react";
-import { Bars3Icon, BellIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { Outlet, useLocation, useNavigate } from "react-router";
-import { Link, useSearchParams } from "react-router-dom";
-import {
-  MagnifyingGlassIcon,
-  UserCircleIcon,
-} from "@heroicons/react/24/outline";
-import { useRef, useState } from "react";
-
-function classNames(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
+  SearchIcon,
+  MenuIcon,
+  CloseIcon,
+  ChevronDownIcon,
+  UsersIcon,
+  UserIcon,
+  LogoutIcon,
+} from "../icons/Icons";
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const inputRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [searchOpenMobile, setSearchOpenMobile] = useState(false);
+  const profileRef = useRef(null);
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get("search") || "";
   const [searchInput, setSearchInput] = useState(search);
 
-  const focusInput = () => {
-    inputRef.current?.focus();
-  };
+  // Re-read the stored user when the profile is edited, so the initials stay in sync.
+  const [, setUserDataVersion] = useState(0);
+  useEffect(() => {
+    const handleUserDataUpdated = () => setUserDataVersion((v) => v + 1);
+    window.addEventListener("userDataUpdated", handleUserDataUpdated);
+    return () => window.removeEventListener("userDataUpdated", handleUserDataUpdated);
+  }, []);
+
+  const userDetails = localStorage.getItem("userData");
+  const currentUser = userDetails ? JSON.parse(userDetails) : null;
+  const initials = `${currentUser?.firstName?.[0] || ""}${
+    currentUser?.lastName?.[0] || ""
+  }`.toUpperCase();
+
+  const isProfilePage = location.pathname === "/user-profile";
 
   const logout = () => {
     localStorage.removeItem("userData");
@@ -48,131 +55,149 @@ export default function Header() {
     });
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const navLinkClass = (active) =>
+    `rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-200 ${
+      active
+        ? "bg-white/10 text-white"
+        : "text-slate-300 hover:bg-white/10 hover:text-white"
+    }`;
+
   return (
-    <div>
-      <Disclosure as="nav" className="bg-gray-800">
-        <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+    <div className="min-h-full">
+      <nav className="sticky top-0 z-30 bg-gradient-to-r from-sky-700 to-cyan-800 shadow-lg">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="relative flex h-16 items-center justify-between">
-            <div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
-              {/* Mobile menu button*/}
-              <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
-                <span className="absolute -inset-0.5" />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-lg p-2 text-slate-200 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white md:hidden"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
                 <span className="sr-only">Open main menu</span>
-                <Bars3Icon
-                  aria-hidden="true"
-                  className="block h-6 w-6 group-data-[open]:hidden"
-                />
-                <XMarkIcon
-                  aria-hidden="true"
-                  className="hidden h-6 w-6 group-data-[open]:block"
-                />
-              </DisclosureButton>
-            </div>
-            <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
-              <div className="flex flex-shrink-0 items-center">
-                <img
-                  alt="Your Company"
-                  src="https://tailwindui.com/plus/img/logos/mark.svg?color=indigo&shade=500"
-                  className="h-8 w-auto"
-                />
-              </div>
-              <div className="hidden sm:ml-6 sm:block">
-                <div className="flex space-x-4">
-                  <Link
-                    to="/"
-                    aria-current={
-                      location.pathname === "/" ? "page" : undefined
-                    }
-                    className={classNames(
-                      location.pathname === "/"
-                        ? "bg-gray-900 text-white"
-                        : "text-gray-300 hover:bg-gray-700 hover:text-white",
-                      "rounded-md px-3 py-2 text-sm font-medium"
-                    )}
-                  >
-                    Dashboard
-                  </Link>
-                </div>
-              </div>
+                {menuOpen ? (
+                  <CloseIcon className="block h-6 w-6" />
+                ) : (
+                  <MenuIcon className="block h-6 w-6" />
+                )}
+              </button>
+
+              <Link to="/" className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                  <UsersIcon className="h-5 w-5 text-white" />
+                </span>
+                <span className="text-lg font-bold tracking-tight text-white">
+                  ContactHub
+                </span>
+              </Link>
             </div>
 
-            <div className="flex justify-center items-center w-full">
-              <div className="relative flex items-center">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={searchInput}
-                  placeholder="Search contacts"
-                  onChange={handleSearchInputChange}
-                  className="pl-10 pr-4 py-1 border rounded-md w-80 bg-slate-700 border-slate-600 
-                focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                />
-                <MagnifyingGlassIcon
-                  onClick={focusInput}
-                  aria-hidden="true"
-                  className="absolute left-2 h-6 w-6 text-gray-600"
-                />
-              </div>
-            </div>
-
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-              {/* Profile dropdown */}
-              <Menu as="div" className="relative ml-3">
-                <div>
-                  <MenuButton className="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
-                    <span className="absolute -inset-1.5" />
-                    <span className="sr-only">Open user menu</span>
-                    {/* <img
-                      alt=""
-                      src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                      className="h-8 w-8 rounded-full"
-                    /> */}
-                    <UserCircleIcon className="h-8 w-8 rounded-full text-white" />
-                  </MenuButton>
+            {!isProfilePage && (
+              <div className="hidden flex-1 justify-center px-6 lg:flex">
+                <div className="relative w-full max-w-md">
+                  <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-sky-200/70" />
+                  <input
+                    type="text"
+                    value={searchInput}
+                    placeholder="Search contacts..."
+                    onChange={handleSearchInputChange}
+                    className="w-full rounded-full border border-white/10 bg-white/10 py-2 pl-10 pr-4 text-sm text-white placeholder-sky-200/60 transition-colors focus:border-sky-300/50 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-sky-400/30"
+                  />
                 </div>
-                <MenuItems
-                  transition
-                  className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              {!isProfilePage && (
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg p-2 text-slate-200 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white lg:hidden"
+                  onClick={() => setSearchOpenMobile((open) => !open)}
                 >
-                  <MenuItem>
+                  <span className="sr-only">Search</span>
+                  <SearchIcon className="h-6 w-6" />
+                </button>
+              )}
+
+              <div className="relative" ref={profileRef}>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 rounded-full p-1.5 text-sm text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  onClick={() => setProfileOpen((open) => !open)}
+                >
+                  <span className="sr-only">Open user menu</span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-bold uppercase text-white ring-1 ring-white/30">
+                    {initials || <UserIcon className="h-5 w-5" />}
+                  </span>
+                  <ChevronDownIcon
+                    className={`h-4 w-4 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right animate-[fadeIn_0.15s_ease-out] rounded-xl bg-white py-1.5 shadow-xl ring-1 ring-slate-200">
                     <Link
-                      to={"/user-profile"}
-                      className="block px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:outline-none"
+                      to="/user-profile"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
                     >
+                      <UserIcon className="h-4 w-4 text-slate-400" />
                       Your Profile
                     </Link>
-                  </MenuItem>
-                  <MenuItem>
                     <button
-                      onClick={logout}
-                      className="flex w-full px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:outline-none"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        logout();
+                      }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
                     >
+                      <LogoutIcon className="h-4 w-4 text-slate-400" />
                       Sign out
                     </button>
-                  </MenuItem>
-                </MenuItems>
-              </Menu>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <DisclosurePanel className="sm:hidden">
-          <div className="space-y-1 px-2 pb-3 pt-2">
+        {searchOpenMobile && !isProfilePage && (
+          <div className="animate-[fadeIn_0.15s_ease-out] px-4 pb-3 lg:hidden">
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-sky-200/70" />
+              <input
+                type="text"
+                value={searchInput}
+                placeholder="Search contacts..."
+                onChange={handleSearchInputChange}
+                className="w-full rounded-full border border-white/10 bg-white/10 py-2 pl-10 pr-4 text-sm text-white placeholder-sky-200/60 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-sky-400/30"
+              />
+            </div>
+          </div>
+        )}
+
+        {menuOpen && (
+          <div className="animate-[fadeIn_0.15s_ease-out] space-y-1 border-t border-white/10 px-4 pb-3 pt-2 md:hidden">
             <Link
               to="/"
-              aria-current={location.pathname === "/" ? "page" : undefined}
-              className={classNames(
-                location.pathname === "/"
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-300 hover:bg-gray-700 hover:text-white",
-                "rounded-md px-3 py-2 text-sm font-medium"
-              )}
+              onClick={() => setMenuOpen(false)}
+              className={navLinkClass(false)}
             >
-              Dashboard
+              Contacts
             </Link>
           </div>
-        </DisclosurePanel>
-      </Disclosure>
+        )}
+      </nav>
+
       <Outlet />
     </div>
   );

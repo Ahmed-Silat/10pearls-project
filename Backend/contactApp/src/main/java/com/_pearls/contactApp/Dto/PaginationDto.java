@@ -3,19 +3,15 @@ package com._pearls.contactApp.Dto;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
 @Setter
-public class PaginationDto {
-    List contact = new ArrayList();
+public class PaginationDto<T> {
 
-    public int totalContacts;
-
-    public int contactsPerPage;
-
-    public int currentPage;
-
-    public double totalPages;
+    private List<T> contacts;
+    private long totalContacts;
+    private int contactsPerPage;
+    private int currentPage;
+    private long totalPages;
 }

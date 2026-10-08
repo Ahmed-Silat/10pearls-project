@@ -6,6 +6,7 @@ import AddContactModal from "../modals/AddContactModal";
 import { useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebounceHook";
 import Pagination from "../pagination/Pagination";
+import { ChevronDownIcon, PlusIcon, UsersIcon } from "../icons/Icons";
 
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
@@ -29,11 +30,10 @@ export default function Dashboard() {
   const fetchContacts = async (sortBy, search, page, size) => {
     const data =
       (await getContactsByUserId(currentUser.id, sortBy, search, page, size)) ||
-      [];
-    setContact(data.contact);
-    delete data.contact;
-    setPaginationData(data);
-    console.log(data);
+      {};
+    const { contacts = [], ...pagination } = data;
+    setContact(contacts);
+    setPaginationData(pagination);
   };
 
   const handleFilterChange = async (event) => {
@@ -57,51 +57,79 @@ export default function Dashboard() {
   }, [debouncedSearchTerm]);
 
   return (
-    <div>
-      <div className="flex justify-end mr-6 mt-1">
-        <Button
-          name="Add Contact"
-          className="bg-blue-600 ml-2 my-3 px-5 py-2 flex justify-center items-center transition duration-500 
-          ease-in-out hover:bg-blue-500 rounded-2xl font-semibold text-sm"
-          onClick={openAddContactModal}
-        />
-        <select
-          defaultValue=""
-          className="bg-blue-400"
-          value={filter}
-          onChange={handleFilterChange}
-        >
-          <option value="" disabled hidden>
-            Filter
-          </option>
-          <option value="A-Z">From A-Z</option>
-          <option value="Z-A">From Z-A</option>
-          <option value="oldDate">Date Old</option>
-          <option value="newDate">Date New</option>
-        </select>
-      </div>
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            My Contacts
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Manage, search and organize everyone you know.
+          </p>
+        </div>
 
-      <div>
-        <h1 className="text-center font-bold text-3xl text-cyan-950">
-          MY CONTACTS
-        </h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-6">
-          {contact.map((value) => {
-            return (
-              <ContactCard
-                firstName={value.firstName}
-                lastName={value.lastName}
-                phone={value.phone}
-                email={value.email}
-                address={value.address}
-                userId={value.user.id}
-                fetchContacts={() => fetchContacts(sortBy, search, page, size)}
-                contactId={value.id}
-              />
-            );
-          })}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select
+              value={filter}
+              onChange={handleFilterChange}
+              className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            >
+              <option value="" disabled hidden>
+                Sort by
+              </option>
+              <option value="A-Z">Name A-Z</option>
+              <option value="Z-A">Name Z-A</option>
+              <option value="oldDate">Oldest first</option>
+              <option value="newDate">Newest first</option>
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+
+          <Button
+            name="Add Contact"
+            onClick={openAddContactModal}
+            image={<PlusIcon className="h-4 w-4" />}
+            className="bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
+          />
         </div>
       </div>
+
+      {contact.length > 0 ? (
+        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {contact.map((value) => (
+            <ContactCard
+              key={value.id}
+              firstName={value.firstName}
+              lastName={value.lastName}
+              phone={value.phone}
+              email={value.email}
+              address={value.address}
+              userId={currentUser.id}
+              fetchContacts={() => fetchContacts(sortBy, search, page, size)}
+              contactId={value.id}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-8 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <UsersIcon className="h-8 w-8 text-slate-400" />
+          </span>
+          <h2 className="mt-4 text-lg font-semibold text-slate-700">
+            No contacts yet
+          </h2>
+          <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
+            Get started by adding your first contact to your address book.
+          </p>
+          <Button
+            name="Add your first contact"
+            onClick={openAddContactModal}
+            image={<PlusIcon className="h-4 w-4" />}
+            className="mt-6 bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
+          />
+        </div>
+      )}
 
       {isAddContactModalOpen && (
         <AddContactModal

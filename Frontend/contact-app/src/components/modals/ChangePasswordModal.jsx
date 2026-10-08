@@ -1,128 +1,131 @@
-"use client";
-
 import { useState } from "react";
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  DialogTitle,
-} from "@headlessui/react";
-import { LockClosedIcon } from "@heroicons/react/24/outline";
+import Modal from "../ui/Modal";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { changePassword } from "../../service/ContactService";
+import { LockIcon } from "../icons/Icons";
+import { changePasswordSchema } from "../../validation/ChangePasswordSchema";
+import { validateWith } from "../../validation/common";
+import { getApiErrorMessage } from "../../service/Constants";
 
 export default function ChangePasswordModal(props) {
-  const [open, setOpen] = useState(true);
-  const [currentPassword, setCurrentPassword] = useState();
-  const [newPassword, setNewPassword] = useState();
-  const [recheckPassword, setRecheckPassword] = useState();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [recheckPassword, setRecheckPassword] = useState("");
+  const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
 
-  const handleCurrentPasswordChange = (event) => {
-    setCurrentPassword(event.target.value);
+  const handleChange = (field, setter) => (event) => {
+    setter(event.target.value);
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  const handleNewPasswordChange = (event) => {
-    setNewPassword(event.target.value);
-  };
-
-  const handleRecheckPassword = (event) => {
-    setRecheckPassword(event.target.value);
-  };
+  const handleCurrentPasswordChange = handleChange(
+    "currentPassword",
+    setCurrentPassword
+  );
+  const handleNewPasswordChange = handleChange("newPassword", setNewPassword);
+  const handleRecheckPassword = handleChange(
+    "recheckPassword",
+    setRecheckPassword
+  );
 
   const changeCurrentPassword = async (event) => {
     event.preventDefault();
-    if (newPassword === recheckPassword) {
-      await changePassword(props.userId, currentPassword, newPassword);
+    const validation = validateWith(changePasswordSchema, {
+      currentPassword,
+      newPassword,
+      recheckPassword,
+    });
+    if (!validation.success) {
+      setErrors(validation.errors);
+      return;
+    }
+    try {
+      await changePassword(
+        props.userId,
+        validation.data.currentPassword,
+        validation.data.newPassword
+      );
       props.onClose();
-    } else {
-      alert("password do not match");
+    } catch (error) {
+      setServerError(getApiErrorMessage(error, "Failed to change password."));
     }
   };
 
   return (
-    <Dialog open={open} onClose={props.onClose} className="relative z-10">
-      <form onSubmit={changeCurrentPassword}>
-        <DialogBackdrop
-          transition
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in"
-        />
-
-        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <DialogPanel
-              transition
-              className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all data-[closed]:translate-y-4 data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in sm:my-8 sm:w-full sm:max-w-lg data-[closed]:sm:translate-y-0 data-[closed]:sm:scale-95"
-            >
-              <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <LockClosedIcon
-                      aria-hidden="true"
-                      className="h-6 w-6 text-blue-600"
-                    />
-                  </div>
-                  <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                    <DialogTitle
-                      as="h3"
-                      className="text-base font-semibold text-gray-900"
-                    >
-                      Change Password
-                    </DialogTitle>
-                    <div className="mt-2">
-                      <LabelWithInput
-                        htmlFor="currentPassword"
-                        labelName="Current Password"
-                        inputType="password"
-                        inputId="currentPassword"
-                        placeholder="Enter Your Current Password"
-                        value={currentPassword}
-                        onChange={handleCurrentPasswordChange}
-                        className="w-96 p-2 border rounded-md"
-                      />
-
-                      <LabelWithInput
-                        htmlFor="newPassword"
-                        labelName="New Password"
-                        inputType="password"
-                        inputId="newPassword"
-                        placeholder="Enter Your New Password"
-                        value={newPassword}
-                        onChange={handleNewPasswordChange}
-                      />
-
-                      <LabelWithInput
-                        htmlFor="reEnterNewPassword"
-                        labelName="Re-Enter New Password"
-                        inputType="password"
-                        inputId="reEnterNewPassword"
-                        placeholder="Re-Enter Your New Password"
-                        value={recheckPassword}
-                        onChange={handleRecheckPassword}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                <button
-                  type="submit"
-                  className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  data-autofocus
-                  onClick={() => props.onClose()}
-                  className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                >
-                  Cancel
-                </button>
-              </div>
-            </DialogPanel>
+    <Modal onClose={props.onClose} titleId="change-password-title" panelClassName="sm:max-w-md">
+      <form onSubmit={changeCurrentPassword} noValidate>
+        <div className="px-6 pt-6">
+          <div className="flex items-center gap-4">
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+              <LockIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 id="change-password-title" className="text-lg font-semibold text-slate-900">
+                Change Password
+              </h3>
+              <p className="text-xs text-slate-500">
+                Choose a strong, unique password.
+              </p>
+            </div>
           </div>
+
+          <div className="mt-4">
+            <LabelWithInput
+              htmlFor="currentPassword"
+              labelName="Current Password"
+              inputType="password"
+              inputId="currentPassword"
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={handleCurrentPasswordChange}
+              error={errors.currentPassword}
+            />
+
+            <LabelWithInput
+              htmlFor="newPassword"
+              labelName="New Password"
+              inputType="password"
+              inputId="newPassword"
+              placeholder="Enter new password"
+              value={newPassword}
+              onChange={handleNewPasswordChange}
+              error={errors.newPassword}
+            />
+
+            <LabelWithInput
+              htmlFor="reEnterNewPassword"
+              labelName="Re-Enter New Password"
+              inputType="password"
+              inputId="reEnterNewPassword"
+              placeholder="Re-enter new password"
+              value={recheckPassword}
+              onChange={handleRecheckPassword}
+              error={errors.recheckPassword}
+            />
+          </div>
+          {serverError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
+          <button
+            type="submit"
+            className="inline-flex w-full justify-center rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 sm:w-auto"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            data-autofocus
+            onClick={() => props.onClose()}
+            className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 sm:w-auto"
+          >
+            Cancel
+          </button>
         </div>
       </form>
-    </Dialog>
+    </Modal>
   );
 }

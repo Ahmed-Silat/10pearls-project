@@ -1,77 +1,73 @@
 package com._pearls.contactApp.Controller;
 
+import com._pearls.contactApp.Config.AuthUser;
 import com._pearls.contactApp.Dto.ContactDto;
-import com._pearls.contactApp.Dto.FilterContactDto;
+import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
-import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
-import com._pearls.contactApp.Model.Contact;
+import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
 import com._pearls.contactApp.Service.ContactService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/contact")
 @RequiredArgsConstructor
 public class ContactController {
 
-    @Autowired
-    private ContactService contactService;
+    private final ContactService contactService;
 
     @GetMapping("/user/{id}")
-    public PaginationDto getContactsByUserId(@PathVariable String id, @RequestParam(required = false) String search, @RequestParam(required = false) String sortBy, @RequestParam(value = "page", defaultValue = "1") int page, @RequestParam(value = "size", defaultValue = "10") int size) {
-        if (page <= 0 || size <= 0) {
-            throw new ResourceNotFoundException("Page and size parameters must be greater than 0.");
-        }
-
-        FilterContactDto filterContactDto = new FilterContactDto();
-        filterContactDto.setSortBy(sortBy);
-
-        PaginationDto paginationDto = contactService.getContactsByUserId(id, search, filterContactDto, page, size);
-
-        if (paginationDto == null || paginationDto.getContact().isEmpty()) {
-            throw new ResourceNotFoundException("No contacts found for user with ID: " + id);
-        }
-
-        return paginationDto;
+    public PaginationDto<ContactDto> getContactsByUserId(@PathVariable String id,
+            @AuthenticationPrincipal AuthUser principal,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        requireSelf(id, principal);
+        return contactService.getContactsByUserId(id, search, sortBy, page, size);
     }
 
     @GetMapping("/{id}")
-    public Optional<Contact> getContactsByContactId(@PathVariable String id) {
-        return Optional.ofNullable(contactService.getContactsByContactId(id).orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + id)));
+    public ContactDto getContactById(@PathVariable String id, @AuthenticationPrincipal AuthUser principal) {
+        return contactService.getContactByIdAndUser(id, principal.getId());
     }
 
     @PostMapping
-    public Contact createContact(@RequestBody ContactDto contactDto) {
-        if (contactDto == null || contactDto.getFirstName() == null || contactDto.getLastName() == null || contactDto.getEmail() == null || contactDto.getPhone() == null || contactDto.getAddress() == null || contactDto.getUser_id() == null) {
-            throw new ResourceNotFoundException("Contact creation failed. Ensure none of the field is null.");
-        } else if (contactDto.getFirstName().isEmpty() || contactDto.getLastName().isEmpty() || contactDto.getEmail().isEmpty() || contactDto.getPhone().isEmpty() || contactDto.getAddress().isEmpty() || contactDto.getUser_id().isEmpty()) {
-            throw new ResourceNotFoundException("Contact creation failed. Ensure none of the field is empty.");
-        }
-        return contactService.createContact(contactDto);
+    public ResponseEntity<ContactDto> createContact(@Valid @RequestBody ContactRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        ContactDto contact = contactService.createContact(principal.getId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(contact);
     }
 
     @PutMapping("/{id}")
-    public Contact updateContact(@PathVariable String id, @RequestBody ContactDto contactDto) {
-        if (!contactService.getContactsByContactId(id).isPresent()) {
-            throw new ResourceNotFoundException("Contact with ID: " + id + " not found. Update operation failed.");
-        } else if (contactDto == null || contactDto.getFirstName() == null || contactDto.getLastName() == null || contactDto.getEmail() == null || contactDto.getPhone() == null || contactDto.getAddress() == null || contactDto.getUser_id() == null) {
-            throw new ResourceNotFoundException("Contact updation failed. Ensure none of the field is null.");
-        } else if (contactDto.getFirstName().isEmpty() || contactDto.getLastName().isEmpty() || contactDto.getEmail().isEmpty() || contactDto.getPhone().isEmpty() || contactDto.getAddress().isEmpty() || contactDto.getUser_id().isEmpty()) {
-            throw new ResourceNotFoundException("Contact updation failed. Ensure none of the field is empty.");
-        }
-        return contactService.updateContact(id, contactDto);
+    public ContactDto updateContact(@PathVariable String id,
+            @Valid @RequestBody ContactRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.updateContact(id, principal.getId(), request);
     }
 
     @DeleteMapping("/{id}")
-    public Contact deleteContact(@PathVariable String id) {
-        Optional<Contact> contact = contactService.getContactsByContactId(id);
-        if (!contact.isPresent()) {
-            throw new ResourceNotFoundException("Contact with ID: " + id + " does not exist. Delete operation failed.");
-        }
-        return contactService.deleteContact(id);
+    public ResponseEntity<Void> deleteContact(@PathVariable String id, @AuthenticationPrincipal AuthUser principal) {
+        contactService.deleteContact(id, principal.getId());
+        return ResponseEntity.noContent().build();
     }
 
+    /** Users may only operate on their own data. */
+    private static void requireSelf(String requestedUserId, AuthUser principal) {
+        if (principal == null || !principal.getId().equals(requestedUserId)) {
+            throw new ForbiddenException("You may only access your own contacts");
+        }
+    }
 }

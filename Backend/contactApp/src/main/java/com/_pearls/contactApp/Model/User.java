@@ -1,37 +1,43 @@
 package com._pearls.contactApp.Model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
+@Table(name = "users")
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_DEFAULT)
-@Table(name = "user")
+@AllArgsConstructor
 @Builder
 public class User {
     @Id
     @UuidGenerator
-    @Column(name = "Id", unique=true,updatable = false)
+    @GeneratedValue
+    @Column(name = "id", unique = true, updatable = false)
     private String id;
 
-    @Column
+    @Column(name = "first_name")
     private String firstName;
 
-    @Column
+    @Column(name = "last_name")
     private String lastName;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
-    @Column
+    @JsonIgnore
+    @Column(nullable = false)
     private String password;
 
     @Column
@@ -39,5 +45,4 @@ public class User {
 
     @Column
     private String address;
-
 }

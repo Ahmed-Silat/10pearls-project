@@ -1,0 +1,21 @@
+export {
+  FaMagnifyingGlass as SearchIcon,
+  FaBars as MenuIcon,
+  FaXmark as CloseIcon,
+  FaChevronDown as ChevronDownIcon,
+  FaChevronLeft as ChevronLeftIcon,
+  FaChevronRight as ChevronRightIcon,
+  FaRegUser as UserIcon,
+  FaUsers as UsersIcon,
+  FaPlus as PlusIcon,
+  FaPenToSquare as PencilIcon,
+  FaTrashCan as TrashIcon,
+  FaPhone as PhoneIcon,
+  FaEnvelope as MailIcon,
+  FaLocationDot as PinIcon,
+  FaLock as LockIcon,
+  FaRightFromBracket as LogoutIcon,
+  FaFacebookF as FacebookIcon,
+} from "react-icons/fa6";
+
+export { FaGoogle as GoogleIcon } from "react-icons/fa";
