@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { updateContact } from "../../service/ContactService";
@@ -49,6 +50,7 @@ export default function EditModal(props) {
         validation.data.phoneNo,
         validation.data.address
       );
+      toast.success("Contact updated");
       props.getContacts();
       props.onClose();
     } catch (error) {

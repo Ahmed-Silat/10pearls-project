@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import { createNewContact } from "../../service/ContactService";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
@@ -51,6 +52,7 @@ export default function AddContactModal(props) {
         validation.data.phoneNo,
         userId
       );
+      toast.success("Contact added");
       props.fetchContacts();
       props.onClose();
     } catch (error) {

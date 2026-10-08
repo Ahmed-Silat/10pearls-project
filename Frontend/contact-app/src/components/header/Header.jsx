@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Outlet } from "react-router";
 import {
@@ -42,6 +43,7 @@ export default function Header() {
 
   const logout = () => {
     localStorage.removeItem("userData");
+    toast.success("Logged out");
     navigate("/login");
   };
 
@@ -151,7 +153,7 @@ export default function Header() {
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
                     >
                       <UserIcon className="h-4 w-4 text-slate-400" />
-                      Your Profile
+                      My Profile
                     </Link>
                     <button
                       onClick={() => {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { changePassword } from "../../service/ContactService";
@@ -55,6 +56,7 @@ export default function ChangePasswordModal(props) {
         validation.data.currentPassword,
         validation.data.newPassword
       );
+      toast.success("Password changed successfully");
       props.onClose();
     } catch (error) {
       setServerError(getApiErrorMessage(error, "Failed to change password."));

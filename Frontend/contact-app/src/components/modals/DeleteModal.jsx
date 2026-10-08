@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import Button from "../button/Button";
 import { deleteContact } from "../../service/ContactService";
@@ -19,6 +20,7 @@ export default function DeleteModal(props) {
     setServerError("");
     try {
       await deleteContact(props.contactId);
+      toast.success("Contact deleted");
       props.getContacts();
       props.onClose();
     } catch (error) {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { updateUser } from "../../service/authService";
@@ -53,6 +54,7 @@ export default function EditProfileModal(props) {
       const userData = { ...stored, ...updatedUser };
       localStorage.setItem("userData", JSON.stringify(userData));
       window.dispatchEvent(new Event("userDataUpdated"));
+      toast.success("Profile updated");
       props.onSaved(userData);
       props.onClose();
     } catch (error) {
