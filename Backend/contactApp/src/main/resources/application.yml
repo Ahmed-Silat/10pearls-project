@@ -1,32 +1,33 @@
-#spring.application.name=contactApp
 spring:
+  application:
+    name: contactApp
   datasource:
-    url: jdbc:postgresql://localhost:5432/10pearls
-    username: postgres
-    password: ahmed123
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/10pearls}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   jpa:
-    database-platform: org.hibernate.dialect.PosgreSQLInnoDBDialect
-    generate-ddl: true
-    show-sql: true
+    open-in-view: false
+    generate-ddl: false
+    show-sql: false
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         globally_quoted_identifiers: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   servlet:
     multipart:
       enabled: true
-      max-file-size: 1000MB
-      max-request-size: 1000MB
-  mvc:
-    throw-exception-if-no-handler-found: true
-    async:
-      request-timeout: 3600000
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+app:
+  jwt:
+    # 256-bit secret, base64-encoded. Override via JWT_SECRET env var in every environment.
+    secret: ${JWT_SECRET:Y2hhbmdlLXRoaXMtaW4tcHJvZHVjdGlvbi1wbGVhc2UtMzItYnl0ZXMtbWluaW11bQ==}
+    expiration-ms: 86400000
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200}
+
 server:
   port: 8080
-  error:
-    path: /user/error
-    whitelabel:
-      enabled: false

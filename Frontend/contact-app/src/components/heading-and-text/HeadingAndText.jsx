@@ -2,13 +2,15 @@ import { Link } from "react-router-dom";
 
 export default function HeadingAndText(props) {
   return (
-    <div>
-      <h3 className="font-extrabold my-10 text-4xl">{props.mainHeading}</h3>
-      <p className="text-zinc-500">
-        Doesn&apos;t have an account yet ?{" "}
+    <div className="mb-8">
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+        {props.mainHeading}
+      </h1>
+      <p className="mt-1.5 text-sm text-slate-500">
+        Doesn&apos;t have an account yet?{" "}
         <Link
           to={props.link}
-          className="text-blue-500 underline decoration-1 hover:no-underline transition-all duration-300 hover:text-blue-700"
+          className="font-semibold text-sky-600 transition-colors duration-200 hover:text-sky-700 hover:underline"
         >
           {props.pageName}
         </Link>

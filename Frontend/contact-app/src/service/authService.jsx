@@ -1,31 +1,31 @@
-import { data } from "autoprefixer";
-import axios from "axios";
+import api, { getApiErrorMessage } from "../service/Constants";
 
 export const login = async (email, password) => {
-  const { data } = await axios.post("http://localhost:8080/user/login", {
-    email: email,
-    password: password,
-  });
-  console.log("user login successful");
+  const { data } = await api.post(`/user/login`, { email, password });
   return data;
 };
 
-export const signup = async (
-  firstName,
-  lastName,
-  address,
-  phoneNo,
-  email,
-  password
-) => {
-  const { data } = await axios.post("http://localhost:8080/user", {
-    firstName: firstName,
-    lastName: lastName,
-    address: address,
+export const signup = async (firstName, lastName, address, phoneNo, email, password) => {
+  const { data } = await api.post(`/user/signup`, {
+    firstName,
+    lastName,
+    address,
     phone: phoneNo,
-    email: email,
-    password: password,
+    email,
+    password,
   });
-  console.log("user signup successful");
   return data;
 };
+
+export const updateUser = async (userId, firstName, lastName, email, phoneNo, address) => {
+  const { data } = await api.put(`/user/${userId}`, {
+    firstName,
+    lastName,
+    email,
+    phone: phoneNo,
+    address,
+  });
+  return data;
+};
+
+export { getApiErrorMessage };
