@@ -19,6 +19,7 @@ export default function SignUp() {
   const [rePassword, setRePassword] = useState("");
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const clearError = (field) =>
@@ -52,6 +53,8 @@ export default function SignUp() {
       setErrors(validation.errors);
       return;
     }
+    setLoading(true);
+    setServerError("");
     try {
       const { rePassword: _rePassword, ...signupData } = validation.data;
       const auth = await signup(
@@ -70,6 +73,8 @@ export default function SignUp() {
       navigate("/");
     } catch (error) {
       setServerError(getApiErrorMessage(error, "Failed to sign up. Please try again."));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,98 +99,101 @@ export default function SignUp() {
           <HeadingAndText mainHeading="Signup" link="/login" pageName="Login" />
 
           <form onSubmit={sendSignupData} noValidate>
-            <div className="sm:flex sm:gap-3">
-              <div className="sm:w-1/2">
-                <LabelWithInput
-                  htmlFor="firstName"
-                  labelName="First Name"
-                  inputType="text"
-                  inputId="firstName"
-                  placeholder="Enter first name"
-                  onChange={handleFirstNameChange}
-                  error={errors.firstName}
-                />
+            <fieldset disabled={loading} className="min-w-0">
+              <div className="sm:flex sm:gap-3">
+                <div className="sm:w-1/2">
+                  <LabelWithInput
+                    htmlFor="firstName"
+                    labelName="First Name"
+                    inputType="text"
+                    inputId="firstName"
+                    placeholder="Enter first name"
+                    onChange={handleFirstNameChange}
+                    error={errors.firstName}
+                  />
+                </div>
+                <div className="sm:w-1/2">
+                  <LabelWithInput
+                    htmlFor="lastName"
+                    labelName="Last Name"
+                    inputType="text"
+                    inputId="lastName"
+                    placeholder="Enter last name"
+                    onChange={handleLastNameChange}
+                    error={errors.lastName}
+                  />
+                </div>
               </div>
-              <div className="sm:w-1/2">
-                <LabelWithInput
-                  htmlFor="lastName"
-                  labelName="Last Name"
-                  inputType="text"
-                  inputId="lastName"
-                  placeholder="Enter last name"
-                  onChange={handleLastNameChange}
-                  error={errors.lastName}
-                />
-              </div>
-            </div>
 
-            <div className="sm:flex sm:gap-3">
-              <div className="sm:w-1/2">
-                <LabelWithInput
-                  htmlFor="email"
-                  labelName="Email Address"
-                  inputType="text"
-                  inputId="email"
-                  placeholder="Enter your email"
-                  onChange={handleEmailChange}
-                  error={errors.email}
-                />
+              <div className="sm:flex sm:gap-3">
+                <div className="sm:w-1/2">
+                  <LabelWithInput
+                    htmlFor="email"
+                    labelName="Email Address"
+                    inputType="text"
+                    inputId="email"
+                    placeholder="Enter your email"
+                    onChange={handleEmailChange}
+                    error={errors.email}
+                  />
+                </div>
+                <div className="sm:w-1/2">
+                  <LabelWithInput
+                    htmlFor="phone"
+                    labelName="Phone No"
+                    inputType="text"
+                    inputId="phone"
+                    placeholder="Enter phone no"
+                    onChange={handlePhoneNoChange}
+                    error={errors.phoneNo}
+                    optional
+                  />
+                </div>
               </div>
-              <div className="sm:w-1/2">
-                <LabelWithInput
-                  htmlFor="phone"
-                  labelName="Phone No"
-                  inputType="text"
-                  inputId="phone"
-                  placeholder="Enter phone no"
-                  onChange={handlePhoneNoChange}
-                  error={errors.phoneNo}
-                  optional
-                />
-              </div>
-            </div>
 
-            <LabelWithInput
-              htmlFor="address"
-              labelName="Address"
-              inputType="text"
-              inputId="address"
-              placeholder="Enter your address"
-              onChange={handleAddressChange}
-              error={errors.address}
-              optional
-            />
+              <LabelWithInput
+                htmlFor="address"
+                labelName="Address"
+                inputType="text"
+                inputId="address"
+                placeholder="Enter your address"
+                onChange={handleAddressChange}
+                error={errors.address}
+                optional
+              />
 
-            <div className="sm:flex sm:gap-3">
-              <div className="sm:w-1/2">
-                <LabelWithInput
-                  htmlFor="password"
-                  labelName="Password"
-                  inputType="password"
-                  inputId="password"
-                  placeholder="Enter password"
-                  onChange={handlePasswordChange}
-                  error={errors.password}
-                />
+              <div className="sm:flex sm:gap-3">
+                <div className="sm:w-1/2">
+                  <LabelWithInput
+                    htmlFor="password"
+                    labelName="Password"
+                    inputType="password"
+                    inputId="password"
+                    placeholder="Enter password"
+                    onChange={handlePasswordChange}
+                    error={errors.password}
+                  />
+                </div>
+                <div className="sm:w-1/2">
+                  <LabelWithInput
+                    htmlFor="repassword"
+                    labelName="Re-Enter Password"
+                    inputType="password"
+                    inputId="repassword"
+                    placeholder="Re-enter password"
+                    onChange={handleRePasswordChange}
+                    error={errors.rePassword}
+                  />
+                </div>
               </div>
-              <div className="sm:w-1/2">
-                <LabelWithInput
-                  htmlFor="repassword"
-                  labelName="Re-Enter Password"
-                  inputType="password"
-                  inputId="repassword"
-                  placeholder="Re-enter password"
-                  onChange={handleRePasswordChange}
-                  error={errors.rePassword}
-                />
-              </div>
-            </div>
 
-            <Button
-              type="submit"
-              name="SIGNUP"
-              className="mt-2 w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
-            />
+              <Button
+                type="submit"
+                name={loading ? "SIGNING UP..." : "SIGNUP"}
+                loading={loading}
+                className="mt-2 w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
+              />
+            </fieldset>
             {serverError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
             )}

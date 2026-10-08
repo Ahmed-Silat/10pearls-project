@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../button/Button";
+import Spinner from "../ui/Spinner";
+import { getUser } from "../../service/authService";
 import ChangePasswordModal from "../modals/ChangePasswordModal";
 import EditProfileModal from "../modals/EditProfileModal";
 import EmptyValue from "../ui/EmptyValue";
@@ -20,6 +22,34 @@ const UserProfile = () => {
   const [currentUser, setCurrentUser] = useState(() =>
     JSON.parse(localStorage.getItem("userData"))
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  // Load the latest profile from the server; fall back to the saved copy if that fails.
+  useEffect(() => {
+    let cancelled = false;
+    const loadProfile = async () => {
+      try {
+        const freshUser = await getUser(currentUser.id);
+        if (cancelled) return;
+        const stored = JSON.parse(localStorage.getItem("userData")) || {};
+        const userData = { ...stored, ...freshUser };
+        localStorage.setItem("userData", JSON.stringify(userData));
+        window.dispatchEvent(new Event("userDataUpdated"));
+        setCurrentUser(userData);
+      } catch {
+        if (!cancelled) setLoadFailed(true);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+    // Only on first load; later changes come from the Edit Profile modal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openChangePasswordModal = () => setIsChangePasswordModalOpen(true);
   const closeChangePasswordModal = () => setIsChangePasswordModalOpen(false);
@@ -50,8 +80,25 @@ const UserProfile = () => {
     { label: "Address", value: currentUser.address, Icon: PinIcon },
   ];
 
+  if (isLoading) {
+    return (
+      <div
+        role="status"
+        className="flex flex-col items-center justify-center gap-3 py-32 text-sky-600"
+      >
+        <Spinner className="h-8 w-8" />
+        <p className="text-sm font-medium text-slate-500">Loading profile...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {loadFailed && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 ring-1 ring-amber-200">
+          Couldn&apos;t load the latest profile details. Showing the last saved copy.
+        </p>
+      )}
       <div className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-slate-200/70">
         {/* Banner */}
         <div className="relative h-36 bg-gradient-to-r from-sky-600 via-sky-700 to-cyan-800">

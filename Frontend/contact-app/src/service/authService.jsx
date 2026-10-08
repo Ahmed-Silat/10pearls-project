@@ -17,6 +17,11 @@ export const signup = async (firstName, lastName, address, phoneNo, email, passw
   return data;
 };
 
+export const getUser = async (userId) => {
+  const { data } = await api.get(`/user/${userId}`);
+  return data;
+};
+
 export const updateUser = async (userId, firstName, lastName, email, phoneNo, address) => {
   const { data } = await api.put(`/user/${userId}`, {
     firstName,

@@ -25,7 +25,10 @@ import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -83,6 +86,29 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is("user-1")))
                 .andExpect(jsonPath("$.firstName", org.hamcrest.Matchers.is("Updated")));
+    }
+
+    @Test
+    void getUser_ownProfile_returnsDto() throws Exception {
+        UserDto dto = new UserDto();
+        dto.setId("user-1");
+        dto.setFirstName("ahmed");
+        dto.setEmail("me@example.com");
+        when(userService.getUser("user-1")).thenReturn(dto);
+
+        mockMvc.perform(asUser(get("/user/{id}", "user-1"), "user-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is("user-1")))
+                .andExpect(jsonPath("$.firstName", org.hamcrest.Matchers.is("ahmed")))
+                .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    void getUser_someoneElsesProfile_returns403() throws Exception {
+        mockMvc.perform(asUser(get("/user/{id}", "user-2"), "user-1"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).getUser(any());
     }
 
     @Test

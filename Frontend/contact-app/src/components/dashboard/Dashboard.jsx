@@ -6,18 +6,24 @@ import AddContactModal from "../modals/AddContactModal";
 import { useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebounceHook";
 import Pagination from "../pagination/Pagination";
+import Spinner from "../ui/Spinner";
 import { ChevronDownIcon, PlusIcon, UsersIcon } from "../icons/Icons";
 
 export default function Dashboard() {
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [paginationData, setPaginationData] = useState();
+  const [isLoading, setIsLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const sortBy = searchParams.get("sortBy") || "";
   const search = searchParams.get("search") || "";
   const page = searchParams.get("page") || "";
   const size = searchParams.get("size") || "";
   const debouncedSearchTerm = useDebouncedValue(search, 2000);
+  // Show the loader while waiting for the user to stop typing, and while the request runs.
+  const isSearchPending = search !== debouncedSearchTerm;
+  const isBusy = isLoading || isSearchPending;
+  const loadingLabel = search ? "Searching..." : "Loading contacts...";
 
   const [filter, setFilter] = useState(sortBy);
 
@@ -28,12 +34,17 @@ export default function Dashboard() {
   const currentUser = JSON.parse(userDetails);
 
   const fetchContacts = async (sortBy, search, page, size) => {
-    const data =
-      (await getContactsByUserId(currentUser.id, sortBy, search, page, size)) ||
-      {};
-    const { contacts = [], ...pagination } = data;
-    setContact(contacts);
-    setPaginationData(pagination);
+    setIsLoading(true);
+    try {
+      const data =
+        (await getContactsByUserId(currentUser.id, sortBy, search, page, size)) ||
+        {};
+      const { contacts = [], ...pagination } = data;
+      setContact(contacts);
+      setPaginationData(pagination);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleFilterChange = async (event) => {
@@ -95,21 +106,55 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {contact.length > 0 ? (
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {contact.map((value) => (
-            <ContactCard
-              key={value.id}
-              firstName={value.firstName}
-              lastName={value.lastName}
-              phone={value.phone}
-              email={value.email}
-              address={value.address}
-              userId={currentUser.id}
-              fetchContacts={() => fetchContacts(sortBy, search, page, size)}
-              contactId={value.id}
-            />
-          ))}
+      {isBusy && contact.length === 0 ? (
+        <div
+          role="status"
+          className="mt-8 flex flex-col items-center justify-center gap-3 py-20 text-sky-600"
+        >
+          <Spinner className="h-8 w-8" />
+          <p className="text-sm font-medium text-slate-500">{loadingLabel}</p>
+        </div>
+      ) : contact.length > 0 ? (
+        <div className="relative mt-8" aria-busy={isBusy}>
+          {isBusy && (
+            <div role="status" className="absolute inset-x-0 top-4 z-10 flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow-lg ring-1 ring-slate-200">
+                <Spinner />
+                {loadingLabel}
+              </span>
+            </div>
+          )}
+          <div
+            className={`grid grid-cols-1 gap-5 transition-opacity duration-200 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              isBusy ? "pointer-events-none opacity-50" : ""
+            }`}
+          >
+            {contact.map((value) => (
+              <ContactCard
+                key={value.id}
+                firstName={value.firstName}
+                lastName={value.lastName}
+                phone={value.phone}
+                email={value.email}
+                address={value.address}
+                userId={currentUser.id}
+                fetchContacts={() => fetchContacts(sortBy, search, page, size)}
+                contactId={value.id}
+              />
+            ))}
+          </div>
+        </div>
+      ) : search ? (
+        <div className="mt-8 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <UsersIcon className="h-8 w-8 text-slate-400" />
+          </span>
+          <h2 className="mt-4 text-lg font-semibold text-slate-700">
+            No contacts found
+          </h2>
+          <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
+            No contacts match &ldquo;{search}&rdquo;. Try a different name, email or phone number.
+          </p>
         </div>
       ) : (
         <div className="mt-8 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
