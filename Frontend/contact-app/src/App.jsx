@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster } from "sonner";
 import Login from "./components/login-signup/Login";
 import SignUp from "./components/login-signup/SignUp";
 import PrivateRoutes from "./routes/PrivateRoutes";
@@ -10,6 +11,7 @@ import Pagination from "./components/pagination/Pagination";
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" richColors closeButton duration={2000} />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />

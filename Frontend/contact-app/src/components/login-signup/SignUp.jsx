@@ -2,6 +2,7 @@ import Button from "../button/Button";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { useState } from "react";
+import { toast } from "sonner";
 import { signup } from "../../service/authService";
 import { useNavigate } from "react-router-dom";
 import { UsersIcon } from "../icons/Icons";
@@ -70,6 +71,7 @@ export default function SignUp() {
         "userData",
         JSON.stringify({ ...auth.user, token: auth.token })
       );
+      toast.success("Account created successfully");
       navigate("/");
     } catch (error) {
       setServerError(getApiErrorMessage(error, "Failed to sign up. Please try again."));

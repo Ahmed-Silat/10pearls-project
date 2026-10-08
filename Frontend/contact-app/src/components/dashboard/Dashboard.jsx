@@ -7,6 +7,8 @@ import { useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebounceHook";
 import Pagination from "../pagination/Pagination";
 import Spinner from "../ui/Spinner";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "../../service/Constants";
 import { ChevronDownIcon, PlusIcon, UsersIcon } from "../icons/Icons";
 
 export default function Dashboard() {
@@ -42,6 +44,8 @@ export default function Dashboard() {
       const { contacts = [], ...pagination } = data;
       setContact(contacts);
       setPaginationData(pagination);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Couldn't load your contacts. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -106,44 +110,41 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {isBusy && contact.length === 0 ? (
+      {/* Full-page loader: covers everything below the header, so the search box stays usable. */}
+      {isBusy && (
         <div
           role="status"
-          className="mt-8 flex flex-col items-center justify-center gap-3 py-20 text-sky-600"
+          className="fixed inset-x-0 bottom-0 top-16 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px]"
         >
-          <Spinner className="h-8 w-8" />
-          <p className="text-sm font-medium text-slate-500">{loadingLabel}</p>
+          <span className="inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-4 text-sm font-semibold text-sky-700 shadow-xl ring-1 ring-slate-200">
+            <Spinner className="h-5 w-5" />
+            {loadingLabel}
+          </span>
         </div>
-      ) : contact.length > 0 ? (
-        <div className="relative mt-8" aria-busy={isBusy}>
-          {isBusy && (
-            <div role="status" className="absolute inset-x-0 top-4 z-10 flex justify-center">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow-lg ring-1 ring-slate-200">
-                <Spinner />
-                {loadingLabel}
-              </span>
-            </div>
-          )}
-          <div
-            className={`grid grid-cols-1 gap-5 transition-opacity duration-200 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-              isBusy ? "pointer-events-none opacity-50" : ""
-            }`}
-          >
-            {contact.map((value) => (
-              <ContactCard
-                key={value.id}
-                firstName={value.firstName}
-                lastName={value.lastName}
-                phone={value.phone}
-                email={value.email}
-                address={value.address}
-                userId={currentUser.id}
-                fetchContacts={() => fetchContacts(sortBy, search, page, size)}
-                contactId={value.id}
-              />
-            ))}
-          </div>
+      )}
+
+      {contact.length > 0 ? (
+        <div
+          aria-busy={isBusy}
+          className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
+          {contact.map((value) => (
+            <ContactCard
+              key={value.id}
+              firstName={value.firstName}
+              lastName={value.lastName}
+              phone={value.phone}
+              email={value.email}
+              address={value.address}
+              userId={currentUser.id}
+              fetchContacts={() => fetchContacts(sortBy, search, page, size)}
+              contactId={value.id}
+            />
+          ))}
         </div>
+      ) : isBusy ? (
+        // Nothing loaded yet: keep the space empty under the loader rather than flashing "No contacts".
+        <div className="mt-8 py-20" />
       ) : search ? (
         <div className="mt-8 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">

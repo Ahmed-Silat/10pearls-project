@@ -3,11 +3,12 @@ import { login } from "../../service/authService";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import { useNavigate } from "react-router-dom";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { UsersIcon } from "../icons/Icons";
 import { loginSchema } from "../../validation/LoginSchema";
 import { validateWith } from "../../validation/common";
-import { getApiErrorMessage } from "../../service/Constants";
+import { getApiErrorMessage, SESSION_EXPIRED_KEY } from "../../service/Constants";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,6 +17,20 @@ export default function Login() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Show a one-time notice if the user was sent here because their session expired.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_EXPIRED_KEY)) {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+        toast.warning("Your session has expired. Please log in again.", {
+          id: "session-expired",
+        });
+      }
+    } catch {
+      // Storage unavailable: nothing to show.
+    }
+  }, []);
 
   const handleEmailChange = (event) => {
     setEmail(event.target.value);
@@ -43,6 +58,7 @@ export default function Login() {
         "userData",
         JSON.stringify({ ...auth.user, token: auth.token })
       );
+      toast.success("Logged in successfully");
       navigate("/");
     } catch (error) {
       setServerError(getApiErrorMessage(error, "Failed to login. Check your credentials."));
