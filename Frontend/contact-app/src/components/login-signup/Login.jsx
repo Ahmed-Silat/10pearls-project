@@ -14,6 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleEmailChange = (event) => {
@@ -33,6 +34,8 @@ export default function Login() {
       setErrors(validation.errors);
       return;
     }
+    setLoading(true);
+    setServerError("");
     try {
       const auth = await login(validation.data.email, validation.data.password);
       // Flatten { token, user } so the rest of the app keeps reading profile fields directly.
@@ -43,6 +46,8 @@ export default function Login() {
       navigate("/");
     } catch (error) {
       setServerError(getApiErrorMessage(error, "Failed to login. Check your credentials."));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,31 +73,34 @@ export default function Login() {
           <HeadingAndText mainHeading="Login" link="/signup" pageName="Signup" />
 
           <form onSubmit={sendLoginData} noValidate>
-            <LabelWithInput
-              htmlFor="email"
-              labelName="Email Address"
-              inputType="text"
-              inputId="email"
-              placeholder="Enter your email"
-              onChange={handleEmailChange}
-              error={errors.email}
-            />
+            <fieldset disabled={loading} className="min-w-0">
+              <LabelWithInput
+                htmlFor="email"
+                labelName="Email Address"
+                inputType="text"
+                inputId="email"
+                placeholder="Enter your email"
+                onChange={handleEmailChange}
+                error={errors.email}
+              />
 
-            <LabelWithInput
-              htmlFor="password"
-              labelName="Password"
-              inputType="password"
-              inputId="password"
-              placeholder="Enter your password"
-              onChange={handlePasswordChange}
-              error={errors.password}
-            />
+              <LabelWithInput
+                htmlFor="password"
+                labelName="Password"
+                inputType="password"
+                inputId="password"
+                placeholder="Enter your password"
+                onChange={handlePasswordChange}
+                error={errors.password}
+              />
 
-            <Button
-              type="submit"
-              name="LOGIN"
-              className="w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
-            />
+              <Button
+                type="submit"
+                name={loading ? "LOGGING IN..." : "LOGIN"}
+                loading={loading}
+                className="w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
+              />
+            </fieldset>
             {serverError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
             )}

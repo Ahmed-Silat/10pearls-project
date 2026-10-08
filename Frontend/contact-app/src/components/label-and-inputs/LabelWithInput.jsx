@@ -35,7 +35,7 @@ export default function LabelWithInput(props) {
           value={value}
           placeholder={placeholder}
           onChange={onChange}
-          className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 ${
+          className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
             error
               ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
               : "border-slate-300 focus:border-sky-500 focus:ring-sky-500/20"
@@ -47,7 +47,7 @@ export default function LabelWithInput(props) {
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Hide password" : "Show password"}
             title={visible ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors duration-200 hover:text-sky-600 focus:outline-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors duration-200 hover:text-sky-600 focus:outline-none disabled:cursor-not-allowed disabled:hover:text-slate-400"
           >
             {visible ? (
               <FaRegEyeSlash className="h-4 w-4" />
