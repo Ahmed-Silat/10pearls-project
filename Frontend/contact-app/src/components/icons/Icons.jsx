@@ -16,6 +16,10 @@ export {
   FaLock as LockIcon,
   FaRightFromBracket as LogoutIcon,
   FaFacebookF as FacebookIcon,
+  FaCheck as CheckIcon,
+  FaRegEye as EyeIcon,
+  FaArrowDownAZ as SortAZIcon,
+  FaArrowDownZA as SortZAIcon,
 } from "react-icons/fa6";
 
 export { FaGoogle as GoogleIcon } from "react-icons/fa";
