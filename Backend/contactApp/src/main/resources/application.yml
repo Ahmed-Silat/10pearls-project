@@ -15,6 +15,17 @@ spring:
       hibernate:
         globally_quoted_identifiers: true
         format_sql: true
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:true}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
   servlet:
     multipart:
       enabled: true
@@ -28,6 +39,15 @@ app:
     expiration-ms: 86400000
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200}
+  mail:
+    # When false, emails are not sent and the password-reset code is written to the log instead (local dev only).
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@contactapp.local}
+  password-reset:
+    otp-expiry-minutes: 10
+    max-attempts: 5
+    resend-cooldown-seconds: 60
+    reset-token-expiry-minutes: 10
 
 server:
   port: 8080

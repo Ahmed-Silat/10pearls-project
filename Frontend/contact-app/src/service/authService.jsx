@@ -33,4 +33,23 @@ export const updateUser = async (userId, firstName, lastName, email, phoneNo, ad
   return data;
 };
 
+export const forgotPassword = async (email) => {
+  const { data } = await api.post(`/user/forgot-password`, { email });
+  return data;
+};
+
+export const verifyOtp = async (email, otp) => {
+  const { data } = await api.post(`/user/verify-otp`, { email, otp });
+  return data;
+};
+
+export const resetPassword = async (email, resetToken, newPassword) => {
+  const { data } = await api.post(`/user/reset-password`, {
+    email,
+    resetToken,
+    newPassword,
+  });
+  return data;
+};
+
 export { getApiErrorMessage };

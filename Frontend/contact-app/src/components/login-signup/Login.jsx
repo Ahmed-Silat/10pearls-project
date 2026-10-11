@@ -1,7 +1,7 @@
 import Button from "../button/Button";
 import { login } from "../../service/authService";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -109,6 +109,15 @@ export default function Login() {
                 onChange={handlePasswordChange}
                 error={errors.password}
               />
+
+              <div className="-mt-1 mb-4 flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-semibold text-sky-600 transition-colors duration-200 hover:text-sky-700 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
               <Button
                 type="submit"

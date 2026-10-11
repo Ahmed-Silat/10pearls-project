@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import Login from "./components/login-signup/Login";
 import SignUp from "./components/login-signup/SignUp";
+import ForgotPassword from "./components/login-signup/ForgotPassword";
 import PrivateRoutes from "./routes/PrivateRoutes";
 import Dashboard from "./components/dashboard/Dashboard";
 import UserProfile from "./components/user-profile/UserProfile";
@@ -15,6 +16,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route element={<PrivateRoutes />}>
           <Route element={<Header />}>
             {/* <Route element={<Pagination />}> */}
