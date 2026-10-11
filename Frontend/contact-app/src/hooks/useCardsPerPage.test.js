@@ -19,8 +19,8 @@ describe("calculatePageSize", () => {
   // Card 245px tall; each row also has 16px card margin + 20px gap = 281px.
   const card = { cardHeight: 245 };
 
-  test("full HD desktop fits 2 rows of 4", () => {
-    expect(calculatePageSize({ width: 1920, height: 1080, gridTop: 200, ...card })).toBe(8);
+  test("full HD desktop fits 3 rows of 4 (pagination footer not reserved)", () => {
+    expect(calculatePageSize({ width: 1920, height: 1080, gridTop: 200, ...card })).toBe(12);
   });
 
   test("short laptop screen fits 1 row of 4", () => {

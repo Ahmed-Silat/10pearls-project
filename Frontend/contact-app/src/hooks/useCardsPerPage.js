@@ -10,7 +10,9 @@ const COLUMN_BREAKPOINTS = [
 const ROW_GAP = 20; // gap-5
 const CARD_MARGIN_Y = 16; // my-2 above + below each card
 const CARD_HEIGHT_ESTIMATE = 295; // used until a real card can be measured
-const SPACE_BELOW_GRID = 136; // pagination footer (mt-8 + bar) + page bottom padding
+// Only the page's bottom padding (py-8). The pagination footer is deliberately left out:
+// cards fill the screen and the user scrolls down to reach the pagination.
+const SPACE_BELOW_GRID = 32;
 const MIN_CARDS_ON_PHONES = 4; // a phone screen fits ~1–2 cards; that many pages would be unusable
 
 export const getColumns = (width) =>
@@ -18,7 +20,7 @@ export const getColumns = (width) =>
 
 /**
  * How many cards fit on screen: columns for this width × complete rows that fit
- * between the top of the grid and the pagination footer.
+ * between the top of the grid and the bottom of the screen (the pagination footer sits below).
  */
 export const calculatePageSize = ({ width, height, gridTop, cardHeight = CARD_HEIGHT_ESTIMATE }) => {
   const columns = getColumns(width);
