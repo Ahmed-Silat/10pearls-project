@@ -60,7 +60,7 @@ class ContactControllerTest {
     }
 
     /** Sets the authenticated principal for the upcoming request. */
-    private MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder builder, String userId) {
+    private MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder builder, Long userId) {
         User user = User.builder().id(userId).email("me@example.com").password("x").build();
         Authentication auth = new UsernamePasswordAuthenticationToken(new AuthUser(user), null, Collections.emptyList());
         return builder.with(request -> {
@@ -69,7 +69,7 @@ class ContactControllerTest {
         });
     }
 
-    private ContactDto sampleContact(String id) {
+    private ContactDto sampleContact(Long id) {
         ContactDto dto = new ContactDto();
         dto.setId(id);
         dto.setFirstName("alice");
@@ -83,18 +83,18 @@ class ContactControllerTest {
     @Test
     void getContactsByUserId_returnsPaginationEnvelope() throws Exception {
         PaginationDto<ContactDto> page = new PaginationDto<>();
-        page.setContacts(List.of(sampleContact("c1")));
+        page.setContacts(List.of(sampleContact(10L)));
         page.setTotalContacts(1);
         page.setTotalPages(1);
         page.setContactsPerPage(10);
         page.setCurrentPage(1);
 
-        when(contactService.getContactsByUserId(eq("user-1"), any(), any(), eq(1), eq(10))).thenReturn(page);
+        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10))).thenReturn(page);
 
-        mockMvc.perform(asUser(get("/contact/user/{id}", "user-1"), "user-1"))
+        mockMvc.perform(asUser(get("/contact/user/{id}", 1L), 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contacts", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$.contacts[0].id", org.hamcrest.Matchers.is("c1")))
+                .andExpect(jsonPath("$.contacts[0].id", org.hamcrest.Matchers.is(10)))
                 .andExpect(jsonPath("$.contacts[0].firstName", org.hamcrest.Matchers.is("alice")))
                 .andExpect(jsonPath("$.contacts[0].owner").doesNotExist())
                 .andExpect(jsonPath("$.contacts[0].user").doesNotExist())
@@ -104,7 +104,7 @@ class ContactControllerTest {
 
     @Test
     void getContactsByUserId_forAnotherUser_returns403() throws Exception {
-        mockMvc.perform(asUser(get("/contact/user/{id}", "someone-else"), "user-1"))
+        mockMvc.perform(asUser(get("/contact/user/{id}", 2L), 1L))
                 .andExpect(status().isForbidden());
 
         verify(contactService, never()).getContactsByUserId(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
@@ -112,25 +112,25 @@ class ContactControllerTest {
 
     @Test
     void createContact_createsForPrincipalIgnoringRequestBodyUserId() throws Exception {
-        ContactDto created = sampleContact("c1");
-        when(contactService.createContact(eq("user-1"), any())).thenReturn(created);
+        ContactDto created = sampleContact(10L);
+        when(contactService.createContact(eq(1L), any())).thenReturn(created);
 
         String body = """
                 {"firstName":"Alice","lastName":"Doe","email":"alice@example.com",
                  "phone":"0300","address":"Karachi"}""";
 
-        mockMvc.perform(asUser(post("/contact"), "user-1")
+        mockMvc.perform(asUser(post("/contact"), 1L)
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is("c1")));
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(10)));
 
-        verify(contactService).createContact(eq("user-1"), any());
+        verify(contactService).createContact(eq(1L), any());
     }
 
     @Test
     void createContact_missingPhone_returns400() throws Exception {
-        mockMvc.perform(asUser(post("/contact"), "user-1")
+        mockMvc.perform(asUser(post("/contact"), 1L)
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content("{\"firstName\":\"Alice\"}"))
                 .andExpect(status().isBadRequest())
@@ -141,9 +141,9 @@ class ContactControllerTest {
 
     @Test
     void createContact_withOnlyFirstNameAndPhone_returns201() throws Exception {
-        when(contactService.createContact(eq("user-1"), any())).thenReturn(sampleContact("c1"));
+        when(contactService.createContact(eq(1L), any())).thenReturn(sampleContact(10L));
 
-        mockMvc.perform(asUser(post("/contact"), "user-1")
+        mockMvc.perform(asUser(post("/contact"), 1L)
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content("{\"firstName\":\"Alice\",\"phone\":\"0300\"}"))
                 .andExpect(status().isCreated());
@@ -151,9 +151,9 @@ class ContactControllerTest {
 
     @Test
     void deleteContact_returns204() throws Exception {
-        mockMvc.perform(asUser(delete("/contact/{id}", "c1"), "user-1"))
+        mockMvc.perform(asUser(delete("/contact/{id}", 10L), 1L))
                 .andExpect(status().isNoContent());
 
-        verify(contactService).deleteContact("c1", "user-1");
+        verify(contactService).deleteContact(10L, 1L);
     }
 }

@@ -48,10 +48,10 @@ class ContactServiceTest {
 
     @BeforeEach
     void setUp() {
-        owner = User.builder().id("user-1").email("owner@example.com").build();
+        owner = User.builder().id(1L).email("owner@example.com").build();
     }
 
-    private Contact contact(String id, String firstName, User user) {
+    private Contact contact(Long id, String firstName, User user) {
         return Contact.builder()
                 .id(id)
                 .firstName(firstName)
@@ -65,14 +65,14 @@ class ContactServiceTest {
 
     @Test
     void getContactsByUserId_mapsPageMetadataCorrectly() {
-        List<Contact> content = List.of(contact("c1", "Alice", owner), contact("c2", "Bob", owner));
+        List<Contact> content = List.of(contact(10L, "Alice", owner), contact(11L, "Bob", owner));
         Page<Contact> page = new PageImpl<>(content, PageRequest.of(0, 2), 5);
-        when(contactRepo.findAllByUser_Id(eq("user-1"), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class))).thenReturn(page);
 
-        PaginationDto<ContactDto> result = contactService.getContactsByUserId("user-1", null, "A-Z", 1, 2);
+        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, "A-Z", 1, 2);
 
         assertThat(result.getContacts()).hasSize(2);
-        assertThat(result.getContacts().get(0).getId()).isEqualTo("c1");
+        assertThat(result.getContacts().get(0).getId()).isEqualTo(10L);
         assertThat(result.getContacts().get(0).getFirstName()).isEqualTo("Alice");
         assertThat(result.getTotalContacts()).isEqualTo(5);
         assertThat(result.getTotalPages()).isEqualTo(3);
@@ -83,11 +83,11 @@ class ContactServiceTest {
     @Test
     void getContactsByUserId_usesAscendingSortByDefault() {
         Page<Contact> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
-        when(contactRepo.findAllByUser_Id(eq("user-1"), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class))).thenReturn(page);
 
-        contactService.getContactsByUserId("user-1", null, null, 1, 10);
+        contactService.getContactsByUserId(1L, null, null, 1, 10);
 
-        verify(contactRepo).findAllByUser_Id(eq("user-1"), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
                 Sort.by(Sort.Direction.ASC, "firstName").equals(p.getSort())));
     }
 
@@ -95,41 +95,41 @@ class ContactServiceTest {
     void getContactsByUserId_searchEscapesLikeWildcards() {
         Page<Contact> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
         // Input "100%" must be escaped to the SQL pattern "100\%%" (literal %, then wildcard).
-        when(contactRepo.searchByUserId(eq("user-1"), eq("100\\%%"), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.searchByUserId(eq(1L), eq("100\\%%"), any(Pageable.class))).thenReturn(page);
 
-        contactService.getContactsByUserId("user-1", "100%", null, 1, 10);
+        contactService.getContactsByUserId(1L, "100%", null, 1, 10);
 
-        verify(contactRepo).searchByUserId(eq("user-1"), eq("100\\%%"), any(Pageable.class));
+        verify(contactRepo).searchByUserId(eq(1L), eq("100\\%%"), any(Pageable.class));
         verify(contactRepo, never()).findAllByUser_Id(any(), any());
     }
 
     @Test
     void getContactByIdAndUser_otherUsersContact_throwsForbidden() {
-        User other = User.builder().id("user-2").build();
-        Contact foreign = contact("c1", "Alice", other);
+        User other = User.builder().id(2L).build();
+        Contact foreign = contact(10L, "Alice", other);
 
-        when(contactRepo.findById("c1")).thenReturn(Optional.of(foreign));
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(foreign));
 
-        assertThatThrownBy(() -> contactService.getContactByIdAndUser("c1", "user-1"))
+        assertThatThrownBy(() -> contactService.getContactByIdAndUser(10L, 1L))
                 .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
     void getContactByIdAndUser_ownContact_returnsDto() {
-        when(contactRepo.findById("c1")).thenReturn(Optional.of(contact("c1", "Alice", owner)));
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(contact(10L, "Alice", owner)));
 
-        ContactDto result = contactService.getContactByIdAndUser("c1", "user-1");
+        ContactDto result = contactService.getContactByIdAndUser(10L, 1L);
 
-        assertThat(result.getId()).isEqualTo("c1");
+        assertThat(result.getId()).isEqualTo(10L);
         assertThat(result.getFirstName()).isEqualTo("Alice");
         assertThat(result.getPhone()).isEqualTo("0300");
     }
 
     @Test
     void getContactByIdAndUser_unknownId_throwsNotFound() {
-        when(contactRepo.findById("missing")).thenReturn(Optional.empty());
+        when(contactRepo.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contactService.getContactByIdAndUser("missing", "user-1"))
+        assertThatThrownBy(() -> contactService.getContactByIdAndUser(999L, 1L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -142,10 +142,10 @@ class ContactServiceTest {
         request.setPhone("0300");
         request.setAddress("Karachi");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(owner));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
         when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ContactDto created = contactService.createContact("user-1", request);
+        ContactDto created = contactService.createContact(1L, request);
 
         assertThat(created.getFirstName()).isEqualTo("john");
         verify(contactRepo).save(org.mockito.ArgumentMatchers.argThat(saved -> saved.getUser() == owner));
@@ -160,10 +160,10 @@ class ContactServiceTest {
         request.setPhone(" 0300 ");
         request.setAddress(" Karachi ");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(owner));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
         when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ContactDto created = contactService.createContact("user-1", request);
+        ContactDto created = contactService.createContact(1L, request);
 
         assertThat(created.getFirstName()).isEqualTo("john");
         assertThat(created.getLastName()).isEqualTo("doe");
@@ -178,10 +178,10 @@ class ContactServiceTest {
         request.setFirstName("John");
         request.setPhone("0300");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(owner));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
         when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ContactDto created = contactService.createContact("user-1", request);
+        ContactDto created = contactService.createContact(1L, request);
 
         assertThat(created.getFirstName()).isEqualTo("john");
         assertThat(created.getLastName()).isNull();
@@ -192,15 +192,15 @@ class ContactServiceTest {
     @Test
     void createContact_unknownUser_throwsNotFound() {
         ContactRequest request = new ContactRequest();
-        when(userRepo.findById("ghost")).thenReturn(Optional.empty());
+        when(userRepo.findById(404L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contactService.createContact("ghost", request))
+        assertThatThrownBy(() -> contactService.createContact(404L, request))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
     void updateContact_updatesOwnedContact() {
-        Contact existing = contact("c1", "Old", owner);
+        Contact existing = contact(10L, "Old", owner);
         ContactRequest request = new ContactRequest();
         request.setFirstName(" Jane ");
         request.setLastName("Doe");
@@ -208,10 +208,10 @@ class ContactServiceTest {
         request.setPhone("0301");
         request.setAddress("London");
 
-        when(contactRepo.findById("c1")).thenReturn(Optional.of(existing));
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
         when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ContactDto updated = contactService.updateContact("c1", "user-1", request);
+        ContactDto updated = contactService.updateContact(10L, 1L, request);
 
         assertThat(updated.getFirstName()).isEqualTo("jane");
         assertThat(updated.getLastName()).isEqualTo("doe");
@@ -223,21 +223,21 @@ class ContactServiceTest {
 
     @Test
     void updateContact_otherUsersContact_throwsForbidden() {
-        User other = User.builder().id("user-2").build();
-        Contact foreign = contact("c1", "Alice", other);
+        User other = User.builder().id(2L).build();
+        Contact foreign = contact(10L, "Alice", other);
 
-        when(contactRepo.findById("c1")).thenReturn(Optional.of(foreign));
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(foreign));
 
-        assertThatThrownBy(() -> contactService.updateContact("c1", "user-1", new ContactRequest()))
+        assertThatThrownBy(() -> contactService.updateContact(10L, 1L, new ContactRequest()))
                 .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
     void deleteContact_deletesOwnedContact() {
-        Contact existing = contact("c1", "Alice", owner);
-        when(contactRepo.findById("c1")).thenReturn(Optional.of(existing));
+        Contact existing = contact(10L, "Alice", owner);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
 
-        contactService.deleteContact("c1", "user-1");
+        contactService.deleteContact(10L, 1L);
 
         verify(contactRepo).delete(existing);
         verify(contactRepo, never()).save(any());
@@ -245,9 +245,9 @@ class ContactServiceTest {
 
     @Test
     void deleteContact_unknownId_throwsNotFound() {
-        when(contactRepo.findById("missing")).thenReturn(Optional.empty());
+        when(contactRepo.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contactService.deleteContact("missing", "user-1"))
+        assertThatThrownBy(() -> contactService.deleteContact(999L, 1L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }

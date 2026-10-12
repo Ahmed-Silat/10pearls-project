@@ -20,7 +20,7 @@ public class AuthUser implements UserDetails {
         return user;
     }
 
-    public String getId() {
+    public Long getId() {
         return user.getId();
     }
 

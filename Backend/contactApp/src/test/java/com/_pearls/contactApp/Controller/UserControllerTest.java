@@ -57,7 +57,7 @@ class UserControllerTest {
         SecurityContextHolder.clearContext();
     }
 
-    private MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder builder, String userId) {
+    private MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder builder, Long userId) {
         User user = User.builder().id(userId).email("me@example.com").password("x").build();
         Authentication auth = new UsernamePasswordAuthenticationToken(new AuthUser(user), null, Collections.emptyList());
         return builder.with(request -> {
@@ -69,51 +69,77 @@ class UserControllerTest {
     @Test
     void updateUser_returnsUpdatedDto() throws Exception {
         UserDto dto = new UserDto();
-        dto.setId("user-1");
+        dto.setId(1L);
         dto.setFirstName("Updated");
         dto.setLastName("Name");
         dto.setEmail("me@example.com");
 
-        when(userService.updateUser(eq("user-1"), any())).thenReturn(dto);
+        when(userService.updateUser(eq(1L), any())).thenReturn(dto);
 
         String body = """
                 {"firstName":"Updated","lastName":"Name","email":"me@example.com",
                  "phone":"0300","address":"Karachi"}""";
 
-        mockMvc.perform(asUser(put("/user/{id}", "user-1"), "user-1")
+        mockMvc.perform(asUser(put("/user/{id}", 1L), 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is("user-1")))
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(1)))
                 .andExpect(jsonPath("$.firstName", org.hamcrest.Matchers.is("Updated")));
     }
 
     @Test
     void getUser_ownProfile_returnsDto() throws Exception {
         UserDto dto = new UserDto();
-        dto.setId("user-1");
+        dto.setId(1L);
         dto.setFirstName("ahmed");
         dto.setEmail("me@example.com");
-        when(userService.getUser("user-1")).thenReturn(dto);
+        when(userService.getUser(1L)).thenReturn(dto);
 
-        mockMvc.perform(asUser(get("/user/{id}", "user-1"), "user-1"))
+        mockMvc.perform(asUser(get("/user/{id}", 1L), 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is("user-1")))
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(1)))
                 .andExpect(jsonPath("$.firstName", org.hamcrest.Matchers.is("ahmed")))
                 .andExpect(jsonPath("$.password").doesNotExist());
     }
 
     @Test
     void getUser_someoneElsesProfile_returns403() throws Exception {
-        mockMvc.perform(asUser(get("/user/{id}", "user-2"), "user-1"))
+        mockMvc.perform(asUser(get("/user/{id}", 2L), 1L))
                 .andExpect(status().isForbidden());
 
         verify(userService, never()).getUser(any());
     }
 
     @Test
+    void updateUser_someoneElsesProfile_returns403() throws Exception {
+        String body = """
+                {"firstName":"Updated","lastName":"Name","email":"me@example.com"}""";
+
+        mockMvc.perform(asUser(put("/user/{id}", 2L), 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).updateUser(any(), any());
+    }
+
+    @Test
+    void changePassword_someoneElsesAccount_returns403() throws Exception {
+        String body = """
+                {"currentPassword":"OldPass@123","newPassword":"NewPass@123"}""";
+
+        mockMvc.perform(asUser(put("/user/changePassword/{id}", 2L), 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).changePassword(any(), any());
+    }
+
+    @Test
     void updateUser_blankBody_returns400() throws Exception {
-        mockMvc.perform(asUser(put("/user/{id}", "user-1"), "user-1")
+        mockMvc.perform(asUser(put("/user/{id}", 1L), 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
