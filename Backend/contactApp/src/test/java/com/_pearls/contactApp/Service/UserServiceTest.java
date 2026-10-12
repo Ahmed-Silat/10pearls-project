@@ -26,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -51,7 +52,7 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         user = User.builder()
-                .id("user-1")
+                .id(1L)
                 .firstName("Ahmed")
                 .lastName("Silat")
                 .email("ahmed@example.com")
@@ -68,16 +69,16 @@ class UserServiceTest {
         List<UserDto> result = userService.getUsers();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo("user-1");
+        assertThat(result.get(0).getId()).isEqualTo(1L);
     }
 
     @Test
     void getUser_unknownId_throwsNotFound() {
-        when(userRepo.findById("missing")).thenReturn(Optional.empty());
+        when(userRepo.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.getUser("missing"))
+        assertThatThrownBy(() -> userService.getUser(999L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("missing");
+                .hasMessageContaining("999");
     }
 
     @Test
@@ -94,10 +95,10 @@ class UserServiceTest {
         when(passwordEncoder.encode("password123")).thenReturn("hashed");
         when(userRepo.save(any(User.class))).thenAnswer(inv -> {
             User saved = inv.getArgument(0);
-            saved.setId("user-2");
+            saved.setId(2L);
             return saved;
         });
-        when(jwtService.generateToken(anyString(), anyString())).thenReturn("jwt-token");
+        when(jwtService.generateToken(anyLong(), anyString())).thenReturn("jwt-token");
 
         AuthResponse response = userService.signup(request);
 
@@ -143,7 +144,7 @@ class UserServiceTest {
 
         AuthResponse response = userService.login(request);
 
-        assertThat(response.getUser().getId()).isEqualTo("user-1");
+        assertThat(response.getUser().getId()).isEqualTo(1L);
     }
 
     @Test
@@ -166,12 +167,12 @@ class UserServiceTest {
 
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("plain", "hashed-old")).thenReturn(true);
-        when(jwtService.generateToken("user-1", "ahmed@example.com")).thenReturn("jwt");
+        when(jwtService.generateToken(1L, "ahmed@example.com")).thenReturn("jwt");
 
         AuthResponse response = userService.login(request);
 
         assertThat(response.getToken()).isEqualTo("jwt");
-        assertThat(response.getUser().getId()).isEqualTo("user-1");
+        assertThat(response.getUser().getId()).isEqualTo(1L);
     }
 
     @Test
@@ -209,10 +210,10 @@ class UserServiceTest {
         request.setPhone("0300");
         request.setAddress("Karachi");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDto result = userService.updateUser("user-1", request);
+        UserDto result = userService.updateUser(1L, request);
 
         assertThat(result.getFirstName()).isEqualTo("new");
         assertThat(result.getPhone()).isEqualTo("0300");
@@ -229,10 +230,10 @@ class UserServiceTest {
         request.setEmail(" New@Example.com  ");
         request.setPhone(" 0300 ");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        userService.updateUser("user-1", request);
+        userService.updateUser(1L, request);
 
         assertThat(user.getFirstName()).isEqualTo("new");
         assertThat(user.getLastName()).isEqualTo("name");
@@ -247,10 +248,10 @@ class UserServiceTest {
         request.setLastName("Name");
         request.setEmail("new@example.com");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        userService.updateUser("user-1", request);
+        userService.updateUser(1L, request);
 
         assertThat(user.getPhone()).isEqualTo("0324-2701482");
         assertThat(user.getAddress()).isEqualTo("Dhoraji");
@@ -265,10 +266,10 @@ class UserServiceTest {
         request.setPhone("");
         request.setAddress("");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        userService.updateUser("user-1", request);
+        userService.updateUser(1L, request);
 
         assertThat(user.getPhone()).isEmpty();
         assertThat(user.getAddress()).isEmpty();
@@ -280,10 +281,10 @@ class UserServiceTest {
         request.setCurrentPassword("wrong");
         request.setNewPassword("newPassword123");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong", "hashed-old")).thenReturn(false);
 
-        assertThatThrownBy(() -> userService.changePassword("user-1", request))
+        assertThatThrownBy(() -> userService.changePassword(1L, request))
                 .isInstanceOf(UnauthorizedException.class);
         assertThat(user.getPassword()).isEqualTo("hashed-old");
         verify(userRepo, never()).save(any());
@@ -295,11 +296,11 @@ class UserServiceTest {
         request.setCurrentPassword("old");
         request.setNewPassword("newPassword123");
 
-        when(userRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("old", "hashed-old")).thenReturn(true);
         when(passwordEncoder.encode("newPassword123")).thenReturn("hashed-new");
 
-        userService.changePassword("user-1", request);
+        userService.changePassword(1L, request);
 
         assertThat(user.getPassword()).isEqualTo("hashed-new");
         verify(userRepo).save(user);

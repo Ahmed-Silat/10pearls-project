@@ -39,7 +39,7 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserDto getUser(String id) {
+    public UserDto getUser(Long id) {
         return userRepo.findById(id).map(this::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + id));
     }
@@ -74,7 +74,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserDto updateUser(String id, UpdateUserRequest request) {
+    public UserDto updateUser(Long id, UpdateUserRequest request) {
         User user = userRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + id));
 
@@ -95,7 +95,7 @@ public class UserService {
     }
 
     @Transactional
-    public void changePassword(String id, ChangePasswordRequest request) {
+    public void changePassword(Long id, ChangePasswordRequest request) {
         User user = userRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + id));
 

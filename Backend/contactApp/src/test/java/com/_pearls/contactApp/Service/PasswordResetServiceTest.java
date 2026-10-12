@@ -57,7 +57,7 @@ class PasswordResetServiceTest {
         ReflectionTestUtils.setField(service, "resetTokenExpiryMinutes", 10L);
 
         user = User.builder()
-                .id("user-1")
+                .id(1L)
                 .firstName("ahmed")
                 .email("ahmed@example.com")
                 .password("old-hash")
@@ -66,7 +66,7 @@ class PasswordResetServiceTest {
 
     private PasswordResetOtp pendingEntry(String otp, Instant createdAt) {
         return PasswordResetOtp.builder()
-                .id("otp-1")
+                .id(100L)
                 .user(user)
                 .otpHash(passwordEncoder.encode(otp))
                 .otpExpiresAt(createdAt.plusSeconds(600))
@@ -88,7 +88,7 @@ class PasswordResetServiceTest {
     @Test
     void requestOtp_knownEmail_storesHashedCodeAndEmailsIt() {
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.empty());
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.empty());
 
         service.requestOtp("Ahmed@Example.com");
 
@@ -99,7 +99,7 @@ class PasswordResetServiceTest {
         assertThat(otp).matches("\\d{6}");
 
         ArgumentCaptor<PasswordResetOtp> saved = ArgumentCaptor.forClass(PasswordResetOtp.class);
-        verify(otpRepo).deleteByUserId("user-1");
+        verify(otpRepo).deleteByUserId(1L);
         verify(otpRepo).save(saved.capture());
         assertThat(saved.getValue().getOtpHash()).isNotEqualTo(otp);
         assertThat(passwordEncoder.matches(otp, saved.getValue().getOtpHash())).isTrue();
@@ -109,7 +109,7 @@ class PasswordResetServiceTest {
     @Test
     void requestOtp_withinCooldown_doesNotSendAnotherCode() {
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(pendingEntry("123456", Instant.now().minusSeconds(10))));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(pendingEntry("123456", Instant.now().minusSeconds(10))));
 
         service.requestOtp("ahmed@example.com");
 
@@ -121,7 +121,7 @@ class PasswordResetServiceTest {
     void verifyOtp_correctCode_returnsTokenAndUsesUpCode() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
 
         VerifyOtpResponse response = service.verifyOtp("ahmed@example.com", "123456");
 
@@ -139,7 +139,7 @@ class PasswordResetServiceTest {
     void verifyOtp_wrongCode_countsTheAttempt() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
 
         assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "000000"))
                 .isInstanceOf(BadRequestException.class)
@@ -153,7 +153,7 @@ class PasswordResetServiceTest {
     void verifyOtp_afterMaxAttempts_rejectsEvenTheCorrectCode() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
 
         for (int i = 1; i <= 4; i++) {
             assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "000000"))
@@ -170,7 +170,7 @@ class PasswordResetServiceTest {
     void verifyOtp_expiredCode_isRejected() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now().minusSeconds(1200));
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
 
         assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "123456"))
                 .isInstanceOf(BadRequestException.class)
@@ -180,7 +180,7 @@ class PasswordResetServiceTest {
     @Test
     void verifyOtp_noPendingRequest_isRejected() {
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.empty());
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "123456"))
                 .isInstanceOf(BadRequestException.class)
@@ -191,7 +191,7 @@ class PasswordResetServiceTest {
     void resetPassword_withValidToken_updatesPasswordAndDeletesRequest() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
         String token = service.verifyOtp("ahmed@example.com", "123456").getResetToken();
 
         service.resetPassword("ahmed@example.com", token, "NewPassword123");
@@ -205,7 +205,7 @@ class PasswordResetServiceTest {
     void resetPassword_withWrongToken_isRejected() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
         service.verifyOtp("ahmed@example.com", "123456");
 
         assertThatThrownBy(() -> service.resetPassword("ahmed@example.com", "not-the-token", "NewPassword123"))
@@ -218,7 +218,7 @@ class PasswordResetServiceTest {
     void resetPassword_withExpiredToken_isRejected() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
         String token = service.verifyOtp("ahmed@example.com", "123456").getResetToken();
         entry.setResetTokenExpiresAt(Instant.now().minusSeconds(1));
 
@@ -231,7 +231,7 @@ class PasswordResetServiceTest {
     @Test
     void resetPassword_withoutVerifyingCode_isRejected() {
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id("user-1")).thenReturn(Optional.of(pendingEntry("123456", Instant.now())));
+        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(pendingEntry("123456", Instant.now())));
 
         assertThatThrownBy(() -> service.resetPassword("ahmed@example.com", "anything", "NewPassword123"))
                 .isInstanceOf(BadRequestException.class)

@@ -24,10 +24,10 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String userId, String email) {
+    public String generateToken(Long userId, String email) {
         Date now = new Date();
         return Jwts.builder()
-                .subject(userId)
+                .subject(String.valueOf(userId))
                 .claim("email", email)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))
@@ -35,15 +35,19 @@ public class JwtService {
                 .compact();
     }
 
-    /** Returns the userId (subject) if the token is valid, otherwise empty. */
-    public Optional<String> validateAndGetUserId(String token) {
+    /**
+     * Returns the userId (subject) if the token is valid, otherwise empty. Tokens issued before user ids
+     * became integers carry a UUID subject; it fails to parse and the token is treated as invalid.
+     */
+    public Optional<Long> validateAndGetUserId(String token) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return Optional.ofNullable(claims.getSubject());
+            String subject = claims.getSubject();
+            return subject == null ? Optional.empty() : Optional.of(Long.valueOf(subject));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

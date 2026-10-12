@@ -39,10 +39,8 @@ public class UserController {
 
     /** Returns the logged-in user's own profile; other users' profiles are not accessible. */
     @GetMapping("/{id}")
-    public UserDto getUser(@PathVariable String id, @AuthenticationPrincipal AuthUser principal) {
-        if (principal == null || !principal.getId().equals(id)) {
-            throw new ForbiddenException("You may only view your own profile");
-        }
+    public UserDto getUser(@PathVariable Long id, @AuthenticationPrincipal AuthUser principal) {
+        requireSelf(id, principal, "You may only view your own profile");
         return userService.getUser(id);
     }
 
@@ -57,14 +55,25 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public UserDto updateUser(@PathVariable String id, @Valid @RequestBody UpdateUserRequest request) {
+    public UserDto updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        requireSelf(id, principal, "You may only update your own profile");
         return userService.updateUser(id, request);
     }
 
     @PutMapping("/changePassword/{id}")
-    public ResponseEntity<Map<String, String>> changePassword(@PathVariable String id,
-            @Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<Map<String, String>> changePassword(@PathVariable Long id,
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        requireSelf(id, principal, "You may only change your own password");
         userService.changePassword(id, request);
         return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+    }
+
+    /** User ids are sequential and easy to guess, so every per-user endpoint must check ownership. */
+    private static void requireSelf(Long requestedUserId, AuthUser principal, String message) {
+        if (principal == null || !principal.getId().equals(requestedUserId)) {
+            throw new ForbiddenException(message);
+        }
     }
 }

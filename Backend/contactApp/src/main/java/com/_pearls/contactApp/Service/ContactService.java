@@ -33,7 +33,7 @@ public class ContactService {
     private static final String SORT_ZA = "Z-A";
 
     @Transactional(readOnly = true)
-    public PaginationDto<ContactDto> getContactsByUserId(String userId, String search, String sortBy, int page, int size) {
+    public PaginationDto<ContactDto> getContactsByUserId(Long userId, String search, String sortBy, int page, int size) {
         Sort sort = sortBy != null && SORT_ZA.equalsIgnoreCase(sortBy)
                 ? Sort.by(Sort.Direction.DESC, "firstName")
                 : Sort.by(Sort.Direction.ASC, "firstName");
@@ -62,12 +62,12 @@ public class ContactService {
     }
 
     @Transactional(readOnly = true)
-    public ContactDto getContactByIdAndUser(String id, String userId) {
+    public ContactDto getContactByIdAndUser(Long id, Long userId) {
         return toDto(findOwnedContact(id, userId));
     }
 
     @Transactional
-    public ContactDto createContact(String userId, ContactRequest request) {
+    public ContactDto createContact(Long userId, ContactRequest request) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
         Contact contact = Contact.builder()
@@ -82,7 +82,7 @@ public class ContactService {
     }
 
     @Transactional
-    public ContactDto updateContact(String id, String userId, ContactRequest request) {
+    public ContactDto updateContact(Long id, Long userId, ContactRequest request) {
         Contact contact = findOwnedContact(id, userId);
         contact.setFirstName(normalize(request.getFirstName()));
         contact.setLastName(normalize(request.getLastName()));
@@ -93,13 +93,13 @@ public class ContactService {
     }
 
     @Transactional
-    public void deleteContact(String id, String userId) {
+    public void deleteContact(Long id, Long userId) {
         Contact contact = findOwnedContact(id, userId);
         contactRepo.delete(contact);
     }
 
     /** Loads a contact and checks that it belongs to the given user. */
-    private Contact findOwnedContact(String id, String userId) {
+    private Contact findOwnedContact(Long id, Long userId) {
         Contact contact = contactRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id " + id));
         if (!contact.getUser().getId().equals(userId)) {

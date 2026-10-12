@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -17,6 +18,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "contacts", indexes = @Index(name = "idx_contacts_user_id", columnList = "user_id"))
 @Getter
@@ -27,10 +30,13 @@ import org.hibernate.annotations.UuidGenerator;
 public class Contact {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contact_id", updatable = false)
+    private Long id;
+
     @UuidGenerator
-    @GeneratedValue
-    @Column(name = "id", unique = true, updatable = false)
-    private String id;
+    @Column(name = "uuid", nullable = false, unique = true, updatable = false)
+    private UUID uuid;
 
     @Column(name = "first_name")
     private String firstName;

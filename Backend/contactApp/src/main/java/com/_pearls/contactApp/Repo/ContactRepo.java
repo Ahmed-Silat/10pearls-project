@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ContactRepo extends JpaRepository<Contact, String>, JpaSpecificationExecutor<Contact> {
+public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificationExecutor<Contact> {
 
     /** Prefix search across name/email/phone/address. {@code pattern} must already have wildcards escaped. */
     @Query("""
@@ -20,7 +20,7 @@ public interface ContactRepo extends JpaRepository<Contact, String>, JpaSpecific
                OR LOWER(c.phone)     LIKE LOWER(:pattern)
                OR LOWER(c.address)   LIKE LOWER(:pattern))
             """)
-    Page<Contact> searchByUserId(@Param("userId") String userId, String pattern, Pageable pageable);
+    Page<Contact> searchByUserId(@Param("userId") Long userId, String pattern, Pageable pageable);
 
-    Page<Contact> findAllByUser_Id(String userId, Pageable pageable);
+    Page<Contact> findAllByUser_Id(Long userId, Pageable pageable);
 }

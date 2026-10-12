@@ -8,11 +8,11 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-public interface PasswordResetOtpRepo extends JpaRepository<PasswordResetOtp, String> {
+public interface PasswordResetOtpRepo extends JpaRepository<PasswordResetOtp, Long> {
 
-    Optional<PasswordResetOtp> findByUser_Id(String userId);
+    Optional<PasswordResetOtp> findByUser_Id(Long userId);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM PasswordResetOtp p WHERE p.user.id = :userId")
-    void deleteByUserId(@Param("userId") String userId);
+    void deleteByUserId(@Param("userId") Long userId);
 }

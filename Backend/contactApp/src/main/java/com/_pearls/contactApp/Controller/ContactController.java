@@ -29,7 +29,7 @@ public class ContactController {
     private final ContactService contactService;
 
     @GetMapping("/user/{id}")
-    public PaginationDto<ContactDto> getContactsByUserId(@PathVariable String id,
+    public PaginationDto<ContactDto> getContactsByUserId(@PathVariable Long id,
             @AuthenticationPrincipal AuthUser principal,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
@@ -40,7 +40,7 @@ public class ContactController {
     }
 
     @GetMapping("/{id}")
-    public ContactDto getContactById(@PathVariable String id, @AuthenticationPrincipal AuthUser principal) {
+    public ContactDto getContactById(@PathVariable Long id, @AuthenticationPrincipal AuthUser principal) {
         return contactService.getContactByIdAndUser(id, principal.getId());
     }
 
@@ -52,20 +52,20 @@ public class ContactController {
     }
 
     @PutMapping("/{id}")
-    public ContactDto updateContact(@PathVariable String id,
+    public ContactDto updateContact(@PathVariable Long id,
             @Valid @RequestBody ContactRequest request,
             @AuthenticationPrincipal AuthUser principal) {
         return contactService.updateContact(id, principal.getId(), request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteContact(@PathVariable String id, @AuthenticationPrincipal AuthUser principal) {
+    public ResponseEntity<Void> deleteContact(@PathVariable Long id, @AuthenticationPrincipal AuthUser principal) {
         contactService.deleteContact(id, principal.getId());
         return ResponseEntity.noContent().build();
     }
 
     /** Users may only operate on their own data. */
-    private static void requireSelf(String requestedUserId, AuthUser principal) {
+    private static void requireSelf(Long requestedUserId, AuthUser principal) {
         if (principal == null || !principal.getId().equals(requestedUserId)) {
             throw new ForbiddenException("You may only access your own contacts");
         }
