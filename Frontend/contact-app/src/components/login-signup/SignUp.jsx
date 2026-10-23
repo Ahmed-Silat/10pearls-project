@@ -98,7 +98,7 @@ export default function SignUp() {
         </div>
 
         <div className="w-full bg-white p-8 md:w-1/2 md:overflow-y-auto sm:p-10">
-          <HeadingAndText mainHeading="Signup" link="/login" pageName="Login" />
+          <HeadingAndText mainHeading="Signup" link="/login" pageName="Login" disabled={loading} />
 
           <form onSubmit={sendSignupData} noValidate>
             <fieldset disabled={loading} className="min-w-0">

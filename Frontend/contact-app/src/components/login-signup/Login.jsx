@@ -1,7 +1,8 @@
 import Button from "../button/Button";
 import { login } from "../../service/authService";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import TextLink from "../ui/TextLink";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -86,7 +87,7 @@ export default function Login() {
         </div>
 
         <div className="flex w-full flex-col justify-center p-8 md:w-1/2 sm:p-12">
-          <HeadingAndText mainHeading="Login" link="/signup" pageName="Signup" />
+          <HeadingAndText mainHeading="Login" link="/signup" pageName="Signup" disabled={loading} />
 
           <form onSubmit={sendLoginData} noValidate>
             <fieldset disabled={loading} className="min-w-0">
@@ -111,12 +112,9 @@ export default function Login() {
               />
 
               <div className="-mt-1 mb-4 flex justify-end">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm font-semibold text-sky-600 transition-colors duration-200 hover:text-sky-700 hover:underline"
-                >
+                <TextLink to="/forgot-password" disabled={loading} className="text-sm">
                   Forgot password?
-                </Link>
+                </TextLink>
               </div>
 
               <Button

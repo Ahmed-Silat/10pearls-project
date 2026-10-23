@@ -20,6 +20,8 @@ export {
   FaRegEye as EyeIcon,
   FaArrowDownAZ as SortAZIcon,
   FaArrowDownZA as SortZAIcon,
+  FaHouse as HomeIcon,
+  FaMagnifyingGlassLocation as LostIcon,
 } from "react-icons/fa6";
 
 export { FaGoogle as GoogleIcon } from "react-icons/fa";
