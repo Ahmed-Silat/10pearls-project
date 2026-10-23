@@ -11,6 +11,9 @@ import {
   UserIcon,
   LogoutIcon,
 } from "../icons/Icons";
+import Spinner from "../ui/Spinner";
+
+export const LOGOUT_DELAY_MS = 800;
 
 export default function Header() {
   const navigate = useNavigate();
@@ -43,10 +46,19 @@ export default function Header() {
 
   const isProfilePage = location.pathname === "/user-profile";
 
+  const [loggingOut, setLoggingOut] = useState(false);
+  const logoutTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(logoutTimerRef.current), []);
+
+  // Logout is client-side only, so hold the "Signing you out" overlay briefly before leaving.
   const logout = () => {
-    localStorage.removeItem("userData");
-    toast.success("Logged out");
-    navigate("/login");
+    if (loggingOut) return;
+    setLoggingOut(true);
+    logoutTimerRef.current = setTimeout(() => {
+      localStorage.removeItem("userData");
+      toast.success("Logged out");
+      navigate("/login", { replace: true });
+    }, LOGOUT_DELAY_MS);
   };
 
   const handleSearchInputChange = (event) => {
@@ -255,6 +267,19 @@ export default function Header() {
       </nav>
 
       <Outlet />
+
+      {loggingOut && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex animate-[fadeIn_0.15s_ease-out] items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+        >
+          <div className="flex animate-[popIn_0.2s_ease-out] items-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-2xl">
+            <Spinner className="h-5 w-5 text-sky-600" />
+            <span className="text-sm font-semibold text-slate-700">Signing you out...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import TextLink from "../ui/TextLink";
 
 export default function HeadingAndText(props) {
   return (
@@ -8,12 +8,9 @@ export default function HeadingAndText(props) {
       </h1>
       <p className="mt-1.5 text-sm text-slate-500">
         Doesn&apos;t have an account yet?{" "}
-        <Link
-          to={props.link}
-          className="font-semibold text-sky-600 transition-colors duration-200 hover:text-sky-700 hover:underline"
-        >
+        <TextLink to={props.link} disabled={props.disabled}>
           {props.pageName}
-        </Link>
+        </TextLink>
       </p>
     </div>
   );

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import Header from "./Header";
+import Header, { LOGOUT_DELAY_MS } from "./Header";
 
 // axios ships as an ES module that Create React App's Jest setup can't load; no API calls happen here.
 jest.mock("axios", () => ({
@@ -62,3 +62,37 @@ test("typing a new search goes back to page 1", () => {
 
   expect(screen.getByTestId("query")).toHaveTextContent("?search=sa");
 });
+
+describe("signing out", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  const signOut = () => {
+    fireEvent.click(screen.getByRole("button", { name: /open user menu/i }));
+    fireEvent.click(screen.getByRole("button", { name: /sign out/i }));
+  };
+
+  test("shows the loader, then clears the session and goes to login", () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+        <CurrentPath />
+      </MemoryRouter>
+    );
+
+    signOut();
+
+    expect(screen.getByRole("status")).toHaveTextContent("Signing you out...");
+    expect(localStorage.getItem("userData")).not.toBeNull();
+    expect(screen.getByTestId("path")).toHaveTextContent("/");
+
+    act(() => jest.advanceTimersByTime(LOGOUT_DELAY_MS));
+
+    expect(localStorage.getItem("userData")).toBeNull();
+    expect(screen.getByTestId("path")).toHaveTextContent("/login");
+  });
+});
+
+function CurrentPath() {
+  return <div data-testid="path">{useLocation().pathname}</div>;
+}

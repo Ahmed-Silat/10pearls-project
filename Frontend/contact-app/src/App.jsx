@@ -8,6 +8,7 @@ import Dashboard from "./components/dashboard/Dashboard";
 import UserProfile from "./components/user-profile/UserProfile";
 import Header from "./components/header/Header";
 import Pagination from "./components/pagination/Pagination";
+import NotFound from "./components/not-found/NotFound";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="/user-profile" element={<UserProfile />} />
           </Route>
         </Route>
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
