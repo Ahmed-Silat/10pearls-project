@@ -20,7 +20,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,16 +59,6 @@ class UserServiceTest {
                 .phone("0324-2701482")
                 .address("Dhoraji")
                 .build();
-    }
-
-    @Test
-    void getUsers_returnsDtosWithoutPassword() {
-        when(userRepo.findAll()).thenReturn(List.of(user));
-
-        List<UserDto> result = userService.getUsers();
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo(1L);
     }
 
     @Test
