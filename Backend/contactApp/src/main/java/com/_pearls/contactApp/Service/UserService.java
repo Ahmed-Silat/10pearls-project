@@ -18,8 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
 
 import static com._pearls.contactApp.Util.TextUtils.normalize;
 import static com._pearls.contactApp.Util.TextUtils.trim;
@@ -32,11 +30,6 @@ public class UserService {
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-
-    @Transactional(readOnly = true)
-    public List<UserDto> getUsers() {
-        return userRepo.findAll().stream().map(this::toDto).collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public UserDto getUser(Long id) {

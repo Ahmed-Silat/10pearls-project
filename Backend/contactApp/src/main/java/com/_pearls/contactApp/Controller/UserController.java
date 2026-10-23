@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -31,11 +30,6 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
-
-    @GetMapping
-    public List<UserDto> getUsers() {
-        return userService.getUsers();
-    }
 
     /** Returns the logged-in user's own profile; other users' profiles are not accessible. */
     @GetMapping("/{id}")
