@@ -51,12 +51,15 @@ export default function ChangePasswordModal(props) {
     setLoading(true);
     setServerError("");
     try {
-      await changePassword(
+      const { token } = await changePassword(
         props.userId,
         validation.data.currentPassword,
         validation.data.newPassword
       );
-      toast.success("Password changed successfully");
+      // The old token stopped working the moment the password changed; keep this session signed in.
+      const stored = JSON.parse(localStorage.getItem("userData")) || {};
+      localStorage.setItem("userData", JSON.stringify({ ...stored, token }));
+      toast.success("Password changed. Other devices have been signed out.");
       props.onClose();
     } catch (error) {
       setServerError(getApiErrorMessage(error, "Failed to change password."));
@@ -108,11 +111,11 @@ export default function ChangePasswordModal(props) {
               />
 
               <LabelWithInput
-                htmlFor="reEnterNewPassword"
-                labelName="Re-Enter New Password"
+                htmlFor="confirmNewPassword"
+                labelName="Confirm New Password"
                 inputType="password"
-                inputId="reEnterNewPassword"
-                placeholder="Re-enter new password"
+                inputId="confirmNewPassword"
+                placeholder="Confirm new password"
                 value={recheckPassword}
                 onChange={handleRecheckPassword}
                 error={errors.recheckPassword}

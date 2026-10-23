@@ -15,7 +15,7 @@ export const otpSchema = z.object({
 export const resetPasswordSchema = z
   .object({
     newPassword: passwordField,
-    confirmPassword: z.string().min(1, "Please re-enter your new password"),
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",

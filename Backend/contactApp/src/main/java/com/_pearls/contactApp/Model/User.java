@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -51,4 +53,9 @@ public class User {
 
     @Column
     private String address;
+
+    /** Last password change or reset. Login tokens issued before this are no longer accepted. */
+    @JsonIgnore
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
 }

@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 
 @RestController
 @RequestMapping("/user")
@@ -55,13 +54,13 @@ public class UserController {
         return userService.updateUser(id, request);
     }
 
+    /** Returns a fresh token: the change signs out all other sessions, including the old token of this one. */
     @PutMapping("/changePassword/{id}")
-    public ResponseEntity<Map<String, String>> changePassword(@PathVariable Long id,
+    public AuthResponse changePassword(@PathVariable Long id,
             @Valid @RequestBody ChangePasswordRequest request,
             @AuthenticationPrincipal AuthUser principal) {
         requireSelf(id, principal, "You may only change your own password");
-        userService.changePassword(id, request);
-        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+        return userService.changePassword(id, request);
     }
 
     /** User ids are sequential and easy to guess, so every per-user endpoint must check ownership. */

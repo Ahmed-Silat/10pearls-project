@@ -7,16 +7,23 @@ import com._pearls.contactApp.Dto.LoginRequest;
 import com._pearls.contactApp.Dto.SignupRequest;
 import com._pearls.contactApp.Dto.UpdateUserRequest;
 import com._pearls.contactApp.Dto.UserDto;
+import com._pearls.contactApp.ExceptionHandling.BadRequestException;
 import com._pearls.contactApp.ExceptionHandling.DuplicateResourceException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.ExceptionHandling.UnauthorizedException;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.UserRepo;
+import com._pearls.contactApp.Util.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 
 
 import static com._pearls.contactApp.Util.TextUtils.normalize;
@@ -27,9 +34,16 @@ import static com._pearls.contactApp.Util.TextUtils.trim;
 @RequiredArgsConstructor
 public class UserService {
 
+    static final String TOO_MANY_LOGINS = "Too many login attempts for this email. Please wait 15 minutes and try again.";
+    static final int MAX_LOGINS_PER_WINDOW = 10;
+    static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
+
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RateLimiter rateLimiter;
+
+    private volatile String dummyHash;
 
     @Transactional(readOnly = true)
     public UserDto getUser(Long id) {
@@ -58,12 +72,19 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        User user = userRepo.findByEmailIgnoreCase(trim(request.getEmail()))
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        String email = trim(request.getEmail());
+        // Counted per email whether or not it has an account, so hitting the limit reveals nothing.
+        rateLimiter.check("login:" + normalize(email), MAX_LOGINS_PER_WINDOW, LOGIN_WINDOW, TOO_MANY_LOGINS);
+
+        Optional<User> user = userRepo.findByEmailIgnoreCase(email);
+        // Check a password even when the email is unknown, so the response time doesn't reveal which emails
+        // have accounts.
+        boolean passwordMatches = passwordEncoder.matches(request.getPassword(),
+                user.map(User::getPassword).orElseGet(this::dummyHash));
+        if (user.isEmpty() || !passwordMatches) {
             throw new UnauthorizedException("Invalid email or password");
         }
-        return toAuthResponse(user);
+        return toAuthResponse(user.get());
     }
 
     @Transactional
@@ -71,9 +92,16 @@ public class UserService {
         User user = userRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + id));
 
+        String newEmail = normalize(request.getEmail());
+        // The email is where reset codes go, so someone holding a stolen session must not be able to change it.
+        if (!newEmail.equalsIgnoreCase(user.getEmail())) {
+            requireCurrentPassword(user, request.getCurrentPassword(),
+                    "Enter your current password to change your email");
+        }
+
         user.setFirstName(normalize(request.getFirstName()));
         user.setLastName(normalize(request.getLastName()));
-        user.setEmail(normalize(request.getEmail()));
+        user.setEmail(newEmail);
 
         // Optional fields: only overwrite when the request includes them, so omitting
         // one keeps the saved value.
@@ -87,17 +115,42 @@ public class UserService {
         return toDto(userRepo.save(user));
     }
 
+    /**
+     * Changes the password and signs out every other session. Returns a fresh token so the session that made
+     * the change stays signed in.
+     */
     @Transactional
-    public void changePassword(Long id, ChangePasswordRequest request) {
+    public AuthResponse changePassword(Long id, ChangePasswordRequest request) {
         User user = userRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + id));
 
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new UnauthorizedException("Current password is incorrect");
-        }
+        requireCurrentPassword(user, request.getCurrentPassword(), "Current password is required");
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepo.save(user);
+        user.setPasswordChangedAt(Instant.now());
+        user = userRepo.save(user);
         log.info("Password changed for user {}", user.getEmail());
+        return toAuthResponse(user);
+    }
+
+    /**
+     * 400 rather than 401 on a wrong password: the session itself is fine, and the frontend treats any 401 as
+     * "session expired" and signs the user out.
+     */
+    private void requireCurrentPassword(User user, String currentPassword, String messageWhenMissing) {
+        if (currentPassword == null || currentPassword.isBlank()) {
+            throw new BadRequestException(messageWhenMissing);
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+    }
+
+    /** A real hash of a random value, checked against for unknown emails so that path isn't faster. */
+    private String dummyHash() {
+        if (dummyHash == null) {
+            dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
+        }
+        return dummyHash;
     }
 
     private UserDto toDto(User user) {

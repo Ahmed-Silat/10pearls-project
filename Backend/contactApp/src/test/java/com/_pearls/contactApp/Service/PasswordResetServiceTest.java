@@ -6,6 +6,8 @@ import com._pearls.contactApp.Model.PasswordResetOtp;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.PasswordResetOtpRepo;
 import com._pearls.contactApp.Repo.UserRepo;
+import com._pearls.contactApp.ExceptionHandling.TooManyRequestsException;
+import com._pearls.contactApp.Util.RateLimiter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,13 +19,17 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +45,9 @@ class PasswordResetServiceTest {
 
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private RateLimiter rateLimiter;
 
     // A real encoder (low cost for speed) so hashing and matching behave as in production.
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
@@ -121,7 +130,7 @@ class PasswordResetServiceTest {
     void verifyOtp_correctCode_returnsTokenAndUsesUpCode() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
 
         VerifyOtpResponse response = service.verifyOtp("ahmed@example.com", "123456");
 
@@ -139,7 +148,7 @@ class PasswordResetServiceTest {
     void verifyOtp_wrongCode_countsTheAttempt() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
 
         assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "000000"))
                 .isInstanceOf(BadRequestException.class)
@@ -153,7 +162,7 @@ class PasswordResetServiceTest {
     void verifyOtp_afterMaxAttempts_rejectsEvenTheCorrectCode() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
 
         for (int i = 1; i <= 4; i++) {
             assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "000000"))
@@ -170,7 +179,7 @@ class PasswordResetServiceTest {
     void verifyOtp_expiredCode_isRejected() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now().minusSeconds(1200));
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
 
         assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "123456"))
                 .isInstanceOf(BadRequestException.class)
@@ -180,7 +189,7 @@ class PasswordResetServiceTest {
     @Test
     void verifyOtp_noPendingRequest_isRejected() {
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.empty());
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.verifyOtp("ahmed@example.com", "123456"))
                 .isInstanceOf(BadRequestException.class)
@@ -191,7 +200,7 @@ class PasswordResetServiceTest {
     void resetPassword_withValidToken_updatesPasswordAndDeletesRequest() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
         String token = service.verifyOtp("ahmed@example.com", "123456").getResetToken();
 
         service.resetPassword("ahmed@example.com", token, "NewPassword123");
@@ -205,7 +214,7 @@ class PasswordResetServiceTest {
     void resetPassword_withWrongToken_isRejected() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
         service.verifyOtp("ahmed@example.com", "123456");
 
         assertThatThrownBy(() -> service.resetPassword("ahmed@example.com", "not-the-token", "NewPassword123"))
@@ -218,7 +227,7 @@ class PasswordResetServiceTest {
     void resetPassword_withExpiredToken_isRejected() {
         PasswordResetOtp entry = pendingEntry("123456", Instant.now());
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(entry));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
         String token = service.verifyOtp("ahmed@example.com", "123456").getResetToken();
         entry.setResetTokenExpiresAt(Instant.now().minusSeconds(1));
 
@@ -231,10 +240,44 @@ class PasswordResetServiceTest {
     @Test
     void resetPassword_withoutVerifyingCode_isRejected() {
         when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
-        when(otpRepo.findByUser_Id(1L)).thenReturn(Optional.of(pendingEntry("123456", Instant.now())));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(pendingEntry("123456", Instant.now())));
 
         assertThatThrownBy(() -> service.resetPassword("ahmed@example.com", "anything", "NewPassword123"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage(PasswordResetService.INVALID_RESET);
+    }
+
+    @Test
+    void resetPassword_signsOutExistingSessions() {
+        PasswordResetOtp entry = pendingEntry("123456", Instant.now());
+        when(userRepo.findByEmailIgnoreCase("ahmed@example.com")).thenReturn(Optional.of(user));
+        when(otpRepo.findByUserIdForUpdate(1L)).thenReturn(Optional.of(entry));
+        String token = service.verifyOtp("ahmed@example.com", "123456").getResetToken();
+        Instant before = Instant.now();
+
+        service.resetPassword("ahmed@example.com", token, "NewPassword123");
+
+        assertThat(user.getPasswordChangedAt()).isNotNull().isAfterOrEqualTo(before);
+    }
+
+    @Test
+    void requestOtp_isLimitedPerEmail_evenForUnknownEmails() {
+        when(userRepo.findByEmailIgnoreCase("ghost@example.com")).thenReturn(Optional.empty());
+
+        service.requestOtp(" Ghost@Example.com ");
+
+        verify(rateLimiter).check(eq("forgot-password:ghost@example.com"),
+                eq(PasswordResetService.MAX_CODES_PER_DAY), eq(Duration.ofDays(1)), anyString());
+    }
+
+    @Test
+    void requestOtp_overTheDailyLimit_sendsNothing() {
+        doThrow(new TooManyRequestsException(PasswordResetService.TOO_MANY_CODES, 3600))
+                .when(rateLimiter).check(anyString(), anyInt(), any(), anyString());
+
+        assertThatThrownBy(() -> service.requestOtp("ahmed@example.com"))
+                .isInstanceOf(TooManyRequestsException.class);
+        verify(otpRepo, never()).save(any());
+        verify(emailService, never()).sendPasswordResetOtp(anyString(), any(), anyString());
     }
 }
