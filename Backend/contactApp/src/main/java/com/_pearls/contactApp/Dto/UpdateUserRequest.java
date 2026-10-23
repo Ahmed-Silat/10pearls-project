@@ -28,4 +28,8 @@ public class UpdateUserRequest {
 
     @Size(max = 255, message = "address must be at most 255 characters")
     private String address;
+
+    /** Only required when the email changes. */
+    @Size(max = 72, message = "currentPassword must be at most 72 characters")
+    private String currentPassword;
 }

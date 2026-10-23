@@ -3,7 +3,6 @@ package com._pearls.contactApp.Service;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
-import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
@@ -104,14 +103,14 @@ class ContactServiceTest {
     }
 
     @Test
-    void getContactByIdAndUser_otherUsersContact_throwsForbidden() {
+    void getContactByIdAndUser_otherUsersContact_looksLikeItDoesNotExist() {
         User other = User.builder().id(2L).build();
         Contact foreign = contact(10L, "Alice", other);
 
         when(contactRepo.findById(10L)).thenReturn(Optional.of(foreign));
 
         assertThatThrownBy(() -> contactService.getContactByIdAndUser(10L, 1L))
-                .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -222,14 +221,14 @@ class ContactServiceTest {
     }
 
     @Test
-    void updateContact_otherUsersContact_throwsForbidden() {
+    void updateContact_otherUsersContact_looksLikeItDoesNotExist() {
         User other = User.builder().id(2L).build();
         Contact foreign = contact(10L, "Alice", other);
 
         when(contactRepo.findById(10L)).thenReturn(Optional.of(foreign));
 
         assertThatThrownBy(() -> contactService.updateContact(10L, 1L, new ContactRequest()))
-                .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

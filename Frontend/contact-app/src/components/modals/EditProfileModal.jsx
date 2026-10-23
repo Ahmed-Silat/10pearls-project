@@ -16,10 +16,15 @@ export default function EditProfileModal(props) {
     email: props.user.email ?? "",
     phoneNo: props.user.phone ?? "",
     address: props.user.address ?? "",
+    currentPassword: "",
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Reset codes go to this address, so the server asks for the password before it changes.
+  const emailChanged =
+    form.email.trim().toLowerCase() !== (props.user.email ?? "").trim().toLowerCase();
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -34,8 +39,14 @@ export default function EditProfileModal(props) {
   const updateProfile = async (event) => {
     event.preventDefault();
     const validation = validateWith(updateUserSchema, form);
-    if (!validation.success) {
-      setErrors(validation.errors);
+    const passwordMissing = emailChanged && !form.currentPassword;
+    if (!validation.success || passwordMissing) {
+      setErrors({
+        ...validation.errors,
+        ...(passwordMissing && {
+          currentPassword: "Enter your current password to change your email",
+        }),
+      });
       return;
     }
     setLoading(true);
@@ -47,7 +58,8 @@ export default function EditProfileModal(props) {
         validation.data.lastName,
         validation.data.email,
         validation.data.phoneNo,
-        validation.data.address
+        validation.data.address,
+        emailChanged ? form.currentPassword : undefined
       );
       // Keep the token and any other stored fields; only the profile fields change.
       const stored = JSON.parse(localStorage.getItem("userData")) || {};
@@ -58,7 +70,13 @@ export default function EditProfileModal(props) {
       props.onSaved(userData);
       props.onClose();
     } catch (error) {
-      setServerError(getApiErrorMessage(error, "Failed to update profile."));
+      const message = getApiErrorMessage(error, "Failed to update profile.");
+      // Show a wrong password next to the password box rather than at the bottom of the form.
+      if (emailChanged && message === "Current password is incorrect") {
+        setErrors((prev) => ({ ...prev, currentPassword: message }));
+      } else {
+        setServerError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -141,6 +159,20 @@ export default function EditProfileModal(props) {
                 error={errors.address}
                 className="sm:col-span-2"
               />
+
+              {emailChanged && (
+                <LabelWithInput
+                  htmlFor="currentPassword"
+                  labelName="Current Password"
+                  inputType="password"
+                  inputId="currentPassword"
+                  placeholder="Confirm it's you to change your email"
+                  value={form.currentPassword}
+                  onChange={handleChange("currentPassword")}
+                  error={errors.currentPassword}
+                  className="sm:col-span-2"
+                />
+              )}
             </div>
             {serverError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>

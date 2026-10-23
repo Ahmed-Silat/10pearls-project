@@ -38,8 +38,13 @@ export const deleteContact = async (contactId) => {
   await api.delete(`/contact/${contactId}`);
 };
 
+/** Returns `{ token, user }`: changing the password signs out every session, so the caller must store the new token. */
 export const changePassword = async (userId, currentPassword, newPassword) => {
-  await api.put(`/user/changePassword/${userId}`, { currentPassword, newPassword });
+  const { data } = await api.put(`/user/changePassword/${userId}`, {
+    currentPassword,
+    newPassword,
+  });
+  return data;
 };
 
 export { getApiErrorMessage };

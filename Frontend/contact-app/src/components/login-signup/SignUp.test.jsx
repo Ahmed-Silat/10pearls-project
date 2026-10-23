@@ -31,7 +31,7 @@ test("disables every input, button and link while the signup request is in fligh
   fill(/first name/i, "Ali");
   fill(/email address/i, "ali@example.com");
   fill(/^password/i, "Secret123");
-  fill(/re-enter password/i, "Secret123");
+  fill(/confirm password/i, "Secret123");
   fireEvent.click(screen.getByRole("button", { name: "SIGNUP" }));
 
   expect(await screen.findByRole("button", { name: /signing up/i })).toBeDisabled();

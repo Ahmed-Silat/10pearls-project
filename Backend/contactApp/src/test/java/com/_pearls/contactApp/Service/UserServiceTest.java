@@ -7,11 +7,13 @@ import com._pearls.contactApp.Dto.LoginRequest;
 import com._pearls.contactApp.Dto.SignupRequest;
 import com._pearls.contactApp.Dto.UpdateUserRequest;
 import com._pearls.contactApp.Dto.UserDto;
+import com._pearls.contactApp.ExceptionHandling.BadRequestException;
 import com._pearls.contactApp.ExceptionHandling.DuplicateResourceException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.ExceptionHandling.UnauthorizedException;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.UserRepo;
+import com._pearls.contactApp.Util.RateLimiter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +46,9 @@ class UserServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private RateLimiter rateLimiter;
 
     @InjectMocks
     private UserService userService;
@@ -195,7 +202,7 @@ class UserServiceTest {
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName("New");
         request.setLastName("Name");
-        request.setEmail("new@example.com");
+        request.setEmail("ahmed@example.com");
         request.setPhone("0300");
         request.setAddress("Karachi");
 
@@ -216,7 +223,7 @@ class UserServiceTest {
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName(" NEW ");
         request.setLastName("  Name");
-        request.setEmail(" New@Example.com  ");
+        request.setEmail(" Ahmed@Example.com  ");
         request.setPhone(" 0300 ");
 
         when(userRepo.findById(1L)).thenReturn(Optional.of(user));
@@ -226,7 +233,7 @@ class UserServiceTest {
 
         assertThat(user.getFirstName()).isEqualTo("new");
         assertThat(user.getLastName()).isEqualTo("name");
-        assertThat(user.getEmail()).isEqualTo("new@example.com");
+        assertThat(user.getEmail()).isEqualTo("ahmed@example.com");
         assertThat(user.getPhone()).isEqualTo("0300");
     }
 
@@ -235,7 +242,7 @@ class UserServiceTest {
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName("New");
         request.setLastName("Name");
-        request.setEmail("new@example.com");
+        request.setEmail("ahmed@example.com");
 
         when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -251,7 +258,7 @@ class UserServiceTest {
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName("New");
         request.setLastName("Name");
-        request.setEmail("new@example.com");
+        request.setEmail("ahmed@example.com");
         request.setPhone("");
         request.setAddress("");
 
@@ -265,7 +272,8 @@ class UserServiceTest {
     }
 
     @Test
-    void changePassword_wrongCurrentPassword_throwsUnauthorized() {
+    void changePassword_wrongCurrentPassword_isA400NotA401() {
+        // A 401 would make the frontend think the session expired and sign the user out.
         ChangePasswordRequest request = new ChangePasswordRequest();
         request.setCurrentPassword("wrong");
         request.setNewPassword("newPassword123");
@@ -274,13 +282,14 @@ class UserServiceTest {
         when(passwordEncoder.matches("wrong", "hashed-old")).thenReturn(false);
 
         assertThatThrownBy(() -> userService.changePassword(1L, request))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Current password is incorrect");
         assertThat(user.getPassword()).isEqualTo("hashed-old");
         verify(userRepo, never()).save(any());
     }
 
     @Test
-    void changePassword_success_encodesAndSaves() {
+    void changePassword_success_savesSignsOutOtherSessionsAndReturnsFreshToken() {
         ChangePasswordRequest request = new ChangePasswordRequest();
         request.setCurrentPassword("old");
         request.setNewPassword("newPassword123");
@@ -288,10 +297,105 @@ class UserServiceTest {
         when(userRepo.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("old", "hashed-old")).thenReturn(true);
         when(passwordEncoder.encode("newPassword123")).thenReturn("hashed-new");
+        when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.generateToken(1L, "ahmed@example.com")).thenReturn("fresh-jwt");
+        Instant before = Instant.now();
 
-        userService.changePassword(1L, request);
+        AuthResponse response = userService.changePassword(1L, request);
 
         assertThat(user.getPassword()).isEqualTo("hashed-new");
+        assertThat(user.getPasswordChangedAt()).isNotNull().isAfterOrEqualTo(before);
+        assertThat(response.getToken()).isEqualTo("fresh-jwt");
         verify(userRepo).save(user);
+    }
+
+    @Test
+    void updateUser_changingEmailWithoutPassword_isRejected() {
+        UpdateUserRequest request = profileUpdate("new@example.com");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.updateUser(1L, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Enter your current password to change your email");
+        assertThat(user.getEmail()).isEqualTo("ahmed@example.com");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void updateUser_changingEmailWithWrongPassword_isRejected() {
+        UpdateUserRequest request = profileUpdate("new@example.com");
+        request.setCurrentPassword("wrong");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong", "hashed-old")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.updateUser(1L, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Current password is incorrect");
+        assertThat(user.getEmail()).isEqualTo("ahmed@example.com");
+    }
+
+    @Test
+    void updateUser_changingEmailWithCorrectPassword_savesIt() {
+        UpdateUserRequest request = profileUpdate("New@Example.com");
+        request.setCurrentPassword("old");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old", "hashed-old")).thenReturn(true);
+        when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.updateUser(1L, request);
+
+        assertThat(user.getEmail()).isEqualTo("new@example.com");
+    }
+
+    @Test
+    void updateUser_sameEmailInDifferentCase_needsNoPassword() {
+        UpdateUserRequest request = profileUpdate("AHMED@example.com");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.updateUser(1L, request);
+
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
+
+    @Test
+    void login_isRateLimitedPerEmail() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail(" Ahmed@Example.com ");
+        request.setPassword("x");
+
+        when(userRepo.findByEmailIgnoreCase("Ahmed@Example.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.login(request)).isInstanceOf(UnauthorizedException.class);
+
+        verify(rateLimiter).check(eq("login:ahmed@example.com"), eq(UserService.MAX_LOGINS_PER_WINDOW),
+                eq(UserService.LOGIN_WINDOW), anyString());
+    }
+
+    @Test
+    void login_unknownEmail_stillChecksAPassword() {
+        // Otherwise unknown emails would be answered faster, revealing which emails have accounts.
+        LoginRequest request = new LoginRequest();
+        request.setEmail("ghost@example.com");
+        request.setPassword("guess");
+
+        when(userRepo.findByEmailIgnoreCase("ghost@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("dummy-hash");
+
+        assertThatThrownBy(() -> userService.login(request)).isInstanceOf(UnauthorizedException.class);
+
+        verify(passwordEncoder).matches("guess", "dummy-hash");
+    }
+
+    private static UpdateUserRequest profileUpdate(String email) {
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setFirstName("Ahmed");
+        request.setLastName("Silat");
+        request.setEmail(email);
+        return request;
     }
 }

@@ -2,6 +2,7 @@ package com._pearls.contactApp.ExceptionHandling;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -44,6 +45,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleUnauthorized(Exception ex) {
         String message = ex instanceof UnauthorizedException ? ex.getMessage() : "Invalid email or password";
         return error(HttpStatus.UNAUTHORIZED, message);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<Object> handleTooManyRequests(TooManyRequestsException ex) {
+        ResponseEntity<Object> response = error(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        return ResponseEntity.status(response.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(response.getBody());
     }
 
     @ExceptionHandler(ForbiddenException.class)

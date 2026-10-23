@@ -178,11 +178,11 @@ export default function SignUp() {
                 </div>
                 <div className="sm:w-1/2">
                   <LabelWithInput
-                    htmlFor="repassword"
-                    labelName="Re-Enter Password"
+                    htmlFor="confirmPassword"
+                    labelName="Confirm Password"
                     inputType="password"
-                    inputId="repassword"
-                    placeholder="Re-enter password"
+                    inputId="confirmPassword"
+                    placeholder="Confirm password"
                     onChange={handleRePasswordChange}
                     error={errors.rePassword}
                   />

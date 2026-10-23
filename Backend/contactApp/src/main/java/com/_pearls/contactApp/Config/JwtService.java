@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Optional;
@@ -56,11 +57,15 @@ public class JwtService {
                 .compact();
     }
 
+    /** A token whose signature and expiry have been checked. */
+    public record VerifiedToken(Long userId, Instant issuedAt) {
+    }
+
     /**
-     * Returns the userId (subject) if the token is valid, otherwise empty. Tokens issued before user ids
+     * Returns the user id and issue time if the token is valid, otherwise empty. Tokens issued before user ids
      * became integers carry a UUID subject; it fails to parse and the token is treated as invalid.
      */
-    public Optional<Long> validateAndGetUserId(String token) {
+    public Optional<VerifiedToken> verify(String token) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(key)
@@ -68,9 +73,17 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
             String subject = claims.getSubject();
-            return subject == null ? Optional.empty() : Optional.of(Long.valueOf(subject));
+            Date issuedAt = claims.getIssuedAt();
+            if (subject == null || issuedAt == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new VerifiedToken(Long.valueOf(subject), issuedAt.toInstant()));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }
+    }
+
+    public Optional<Long> validateAndGetUserId(String token) {
+        return verify(token).map(VerifiedToken::userId);
     }
 }

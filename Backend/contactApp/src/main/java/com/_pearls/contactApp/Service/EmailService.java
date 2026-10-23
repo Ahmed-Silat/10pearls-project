@@ -20,6 +20,9 @@ public class EmailService {
     @Value("${app.mail.enabled:false}")
     private boolean mailEnabled;
 
+    @Value("${app.mail.log-codes:false}")
+    private boolean logCodes;
+
     @Value("${app.mail.from:no-reply@contactapp.local}")
     private String from;
 
@@ -30,8 +33,14 @@ public class EmailService {
     @Async
     public void sendPasswordResetOtp(String to, String firstName, String otp) {
         if (!mailEnabled) {
-            // Local development without an SMTP server: print the code so the flow can still be tested.
-            log.warn("MAIL_ENABLED is false - password reset code for {} is {}", to, otp);
+            // Reset codes are as good as a password, so they only reach the log when explicitly asked for
+            // (local development without an SMTP server).
+            if (logCodes) {
+                log.warn("MAIL_ENABLED is false - password reset code for {} is {}", to, otp);
+            } else {
+                log.warn("MAIL_ENABLED is false - password reset email to {} was not sent "
+                        + "(set MAIL_LOG_CODES=true to log the code in local development)", to);
+            }
             return;
         }
 

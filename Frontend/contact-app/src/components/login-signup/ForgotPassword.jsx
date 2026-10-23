@@ -262,10 +262,10 @@ export default function ForgotPassword() {
                 />
                 <LabelWithInput
                   htmlFor="confirmPassword"
-                  labelName="Re-Enter New Password"
+                  labelName="Confirm New Password"
                   inputType="password"
                   inputId="confirmPassword"
-                  placeholder="Re-enter new password"
+                  placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={handleChange("confirmPassword", setConfirmPassword)}
                   error={errors.confirmPassword}

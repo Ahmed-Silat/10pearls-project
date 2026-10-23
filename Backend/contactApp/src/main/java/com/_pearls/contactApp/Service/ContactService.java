@@ -3,7 +3,6 @@ package com._pearls.contactApp.Service;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
-import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
@@ -98,14 +97,14 @@ public class ContactService {
         contactRepo.delete(contact);
     }
 
-    /** Loads a contact and checks that it belongs to the given user. */
+    /**
+     * Loads a contact and checks that it belongs to the given user. Someone else's contact gets the same 404 as a
+     * missing one; a 403 would confirm that the id exists, and ids are sequential.
+     */
     private Contact findOwnedContact(Long id, Long userId) {
-        Contact contact = contactRepo.findById(id)
+        return contactRepo.findById(id)
+                .filter(contact -> contact.getUser().getId().equals(userId))
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id " + id));
-        if (!contact.getUser().getId().equals(userId)) {
-            throw new ForbiddenException("You do not have access to this contact");
-        }
-        return contact;
     }
 
     private ContactDto toDto(Contact contact) {

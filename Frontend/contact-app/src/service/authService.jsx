@@ -22,13 +22,23 @@ export const getUser = async (userId) => {
   return data;
 };
 
-export const updateUser = async (userId, firstName, lastName, email, phoneNo, address) => {
+/** `currentPassword` is only needed (and only sent) when the email changes. */
+export const updateUser = async (
+  userId,
+  firstName,
+  lastName,
+  email,
+  phoneNo,
+  address,
+  currentPassword
+) => {
   const { data } = await api.put(`/user/${userId}`, {
     firstName,
     lastName,
     email,
     phone: phoneNo,
     address,
+    ...(currentPassword && { currentPassword }),
   });
   return data;
 };

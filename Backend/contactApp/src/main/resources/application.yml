@@ -45,9 +45,13 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200}
   mail:
-    # When false, emails are not sent and the password-reset code is written to the log instead (local dev only).
+    # When false, emails are not sent. The reset code is then only logged if log-codes is true (local dev only).
     enabled: ${MAIL_ENABLED:false}
+    log-codes: ${MAIL_LOG_CODES:false}
     from: ${MAIL_FROM:no-reply@contactapp.local}
+  rate-limit:
+    # Per-IP limits on login, signup and the password-reset endpoints (see RateLimitFilter).
+    enabled: ${RATE_LIMIT_ENABLED:true}
   password-reset:
     otp-expiry-minutes: 10
     max-attempts: 5

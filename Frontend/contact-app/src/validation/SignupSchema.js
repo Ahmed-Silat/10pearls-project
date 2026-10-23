@@ -17,7 +17,7 @@ export const signupSchema = z
     phoneNo: phoneField.or(z.literal("")),
     address: optionalAddressField,
     password: passwordField,
-    rePassword: z.string().min(1, "Please re-enter your password"),
+    rePassword: z.string().min(1, "Please confirm your password"),
   })
   .refine((data) => data.password === data.rePassword, {
     message: "Passwords do not match",
