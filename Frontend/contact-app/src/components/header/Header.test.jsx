@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import Header, { LOGOUT_DELAY_MS } from "./Header";
 
@@ -110,4 +110,34 @@ test("the account menu shows the signed-in user's full name and email", () => {
   expect(screen.getByTestId("menu-user-email")).toHaveTextContent("ali.khan@example.com");
   // Hovering the avatar also shows who is signed in.
   expect(screen.getByRole("button", { name: /open user menu/i })).toHaveAttribute("title", "ali khan");
+});
+
+test("the page layout includes the sidebar's section links", () => {
+  renderHeader("/");
+
+  const sections = screen.getByRole("navigation", { name: "Sections" });
+  expect(within(sections).getByRole("link", { name: /^Favorites/ })).toHaveAttribute("href", "/favorites");
+  expect(within(sections).getByRole("link", { name: /^Recently deleted/ })).toHaveAttribute(
+    "href",
+    "/recently-deleted"
+  );
+});
+
+test("on phones, the ☰ menu shows the same sections", () => {
+  renderHeader("/");
+
+  fireEvent.click(screen.getByRole("button", { name: "Open main menu" }));
+
+  // One set in the (desktop) sidebar, one in the opened phone menu.
+  expect(screen.getAllByRole("navigation", { name: "Sections" })).toHaveLength(2);
+});
+
+test("search also appears on the Favorites page", () => {
+  renderHeader("/favorites");
+  expect(screen.getAllByLabelText("Search contacts").length).toBeGreaterThan(0);
+});
+
+test("the search box only appears on the contacts page", () => {
+  renderHeader("/recently-deleted");
+  expect(screen.queryByLabelText("Search contacts")).not.toBeInTheDocument();
 });

@@ -1,10 +1,11 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 
 // Must match the contact grid's Tailwind classes:
-// grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5, and each card's my-2.
+// grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5, and each card's my-2.
+// From md up the sidebar takes 240px, so columns are added later than the screen width alone suggests.
 const COLUMN_BREAKPOINTS = [
-  { minWidth: 1024, columns: 4 }, // lg
-  { minWidth: 768, columns: 3 }, // md
+  { minWidth: 1536, columns: 4 }, // 2xl
+  { minWidth: 1024, columns: 3 }, // lg
   { minWidth: 640, columns: 2 }, // sm
 ];
 const ROW_GAP = 20; // gap-5

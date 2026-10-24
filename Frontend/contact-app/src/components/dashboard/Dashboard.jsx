@@ -3,7 +3,7 @@ import Button from "../button/Button";
 import { getContactsByUserId } from "../../service/ContactService";
 import ContactCard from "../ContactCard/ContactCard";
 import AddContactModal from "../modals/AddContactModal";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebounceHook";
 import { useCardsPerPage } from "../../hooks/useCardsPerPage";
 import Pagination from "../pagination/Pagination";
@@ -11,7 +11,10 @@ import Spinner from "../ui/Spinner";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "../../service/Constants";
 import Dropdown from "../ui/Dropdown";
-import { PlusIcon, SortAZIcon, SortZAIcon, UsersIcon } from "../icons/Icons";
+import { PlusIcon, SortAZIcon, SortZAIcon, StarIcon, UsersIcon } from "../icons/Icons";
+
+/** How long typing must pause before searching: short enough to feel instant, long enough to skip most keystrokes. */
+export const SEARCH_DEBOUNCE_MS = 500;
 
 const SORT_OPTIONS = [
   { value: "A-Z", label: "Name (A–Z)", icon: SortAZIcon },
@@ -24,7 +27,13 @@ const parsePositiveInt = (value, fallback) => {
   return Number.isInteger(number) && number > 0 ? number : fallback;
 };
 
-export default function Dashboard() {
+/**
+ * A list of contacts. `view` is the sidebar section: "all" (every contact) or "favorites" (starred only).
+ * Both share the cards, search, sorting and paging.
+ */
+export default function Dashboard({ view = "all" }) {
+  const isFavorites = view === "favorites";
+  const EmptyIcon = isFavorites ? StarIcon : UsersIcon;
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [paginationData, setPaginationData] = useState();
@@ -43,7 +52,7 @@ export default function Dashboard() {
   const { pageSize: size, ready: isSizeReady, remeasure } = useCardsPerPage(gridRef);
 
   // Wait for typing to pause before searching, but show all contacts straight away when cleared.
-  const debouncedSearchTerm = useDebouncedValue(search, 2000, { immediateWhenEmpty: true });
+  const debouncedSearchTerm = useDebouncedValue(search, SEARCH_DEBOUNCE_MS, { immediateWhenEmpty: true });
   // Show the loader while waiting for the user to stop typing, and while the request runs.
   const isSearchPending = search !== debouncedSearchTerm;
   const isBusy = isLoading || isSearchPending;
@@ -76,13 +85,14 @@ export default function Dashboard() {
     });
   };
 
-  const loadContacts = useCallback(async () => {
+  /** `silent` refreshes the list in place, without the full-page loader (e.g. after starring a contact). */
+  const loadContacts = useCallback(async ({ silent = false } = {}) => {
     if (!isSizeReady) return; // wait until we know how many cards fit
     const requestId = ++latestRequestRef.current;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       const data =
-        (await getContactsByUserId(userId, sortBy, debouncedSearchTerm, page, size)) || {};
+        (await getContactsByUserId(userId, sortBy, debouncedSearchTerm, page, size, view)) || {};
       if (requestId !== latestRequestRef.current) return;
 
       const { contacts = [], ...pagination } = data;
@@ -107,7 +117,7 @@ export default function Dashboard() {
     } finally {
       if (requestId === latestRequestRef.current) setIsLoading(false);
     }
-  }, [isSizeReady, userId, sortBy, debouncedSearchTerm, page, size]);
+  }, [isSizeReady, userId, sortBy, debouncedSearchTerm, page, size, view]);
 
   useEffect(() => {
     loadContacts();
@@ -155,10 +165,12 @@ export default function Dashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            My Contacts
+            {isFavorites ? "Favorites" : "My Contacts"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Manage, search and organize everyone you know.
+            {isFavorites
+              ? "The contacts you've starred, all in one place."
+              : "Manage, search and organize everyone you know."}
           </p>
         </div>
 
@@ -187,7 +199,7 @@ export default function Dashboard() {
       {isBusy && (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-0 top-16 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px]"
+          className="fixed inset-x-0 bottom-0 top-16 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px] md:left-60"
         >
           <span className="inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-4 text-sm font-semibold text-sky-700 shadow-xl ring-1 ring-slate-200">
             <Spinner className="h-5 w-5" />
@@ -201,7 +213,7 @@ export default function Dashboard() {
         {contact.length > 0 ? (
           <div
             aria-busy={isBusy}
-            className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
           >
             {contact.map((value) => (
               <ContactCard
@@ -211,6 +223,8 @@ export default function Dashboard() {
                 phone={value.phone}
                 email={value.email}
                 address={value.address}
+                favorite={value.favorite}
+                highlight={debouncedSearchTerm}
                 userId={currentUser.id}
                 fetchContacts={loadContacts}
                 contactId={value.id}
@@ -223,14 +237,31 @@ export default function Dashboard() {
         ) : search ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <UsersIcon className="h-8 w-8 text-slate-400" />
+              <EmptyIcon className="h-8 w-8 text-slate-400" />
             </span>
             <h2 className="mt-4 text-lg font-semibold text-slate-700">
-              No contacts found
+              No {isFavorites ? "favorites" : "contacts"} found
             </h2>
             <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
-              No contacts match &ldquo;{search}&rdquo;. Try a different name, email or phone number.
+              No {isFavorites ? "favorites" : "contacts"} match &ldquo;{search}&rdquo;. Try a different
+              name, email or phone number.
             </p>
+          </div>
+        ) : isFavorites ? (
+          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
+              <StarIcon className="h-8 w-8 text-amber-300" />
+            </span>
+            <h2 className="mt-4 text-lg font-semibold text-slate-700">No favorites yet</h2>
+            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
+              Tap the star on a contact to add it here, so the people you need most are one click away.
+            </p>
+            <Link
+              to="/"
+              className="mt-6 inline-flex items-center rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 transition-colors hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+            >
+              Go to all contacts
+            </Link>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">

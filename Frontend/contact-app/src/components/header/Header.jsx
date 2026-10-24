@@ -12,6 +12,10 @@ import {
   LogoutIcon,
 } from "../icons/Icons";
 import Spinner from "../ui/Spinner";
+import Sidebar, { SidebarNav } from "../sidebar/Sidebar";
+
+/** Pages showing a contact list; the header search filters whichever one is open. */
+const SEARCHABLE_PAGES = ["/", "/favorites"];
 
 export const LOGOUT_DELAY_MS = 800;
 
@@ -46,7 +50,8 @@ export default function Header() {
   const fullName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(" ");
   const email = currentUser?.email || "";
 
-  const isProfilePage = location.pathname === "/user-profile";
+  // Search filters the contact list, so it only appears on the contacts page.
+  const showSearch = SEARCHABLE_PAGES.includes(location.pathname);
 
   const [loggingOut, setLoggingOut] = useState(false);
   const logoutTimerRef = useRef(null);
@@ -105,17 +110,12 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const navLinkClass = (active) =>
-    `rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-200 ${
-      active
-        ? "bg-white/10 text-white"
-        : "text-slate-300 hover:bg-white/10 hover:text-white"
-    }`;
 
   return (
     <div className="min-h-full">
       <nav className="sticky top-0 z-30 bg-gradient-to-r from-sky-700 to-cyan-800 shadow-lg">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Full width, so the logo lines up with the sidebar below it. */}
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="relative flex h-16 items-center justify-between gap-2">
             {/* min-w-0 lets this side shrink on narrow phones instead of pushing the row off-screen. */}
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -143,7 +143,7 @@ export default function Header() {
               </Link>
             </div>
 
-            {!isProfilePage && (
+            {showSearch && (
               <div className="hidden flex-1 justify-center px-6 lg:flex">
                 <div className="relative w-full max-w-md">
                   <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-sky-200/70" />
@@ -173,7 +173,7 @@ export default function Header() {
             )}
 
             <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
-              {!isProfilePage && (
+              {showSearch && (
                 <button
                   type="button"
                   className="inline-flex items-center justify-center rounded-lg p-2 text-slate-200 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white lg:hidden"
@@ -247,7 +247,7 @@ export default function Header() {
           </div>
         </div>
 
-        {searchOpenMobile && !isProfilePage && (
+        {searchOpenMobile && showSearch && (
           <div className="animate-[fadeIn_0.15s_ease-out] px-4 pb-3 lg:hidden">
             <div className="relative">
               <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-sky-200/70" />
@@ -276,20 +276,20 @@ export default function Header() {
           </div>
         )}
 
+        {/* On phones the sidebar's sections live here, behind the ☰ button. */}
         {menuOpen && (
-          <div className="animate-[fadeIn_0.15s_ease-out] space-y-1 border-t border-white/10 px-4 pb-3 pt-2 md:hidden">
-            <Link
-              to="/"
-              onClick={() => setMenuOpen(false)}
-              className={navLinkClass(false)}
-            >
-              Contacts
-            </Link>
+          <div className="animate-[fadeIn_0.15s_ease-out] border-t border-white/10 px-4 pb-3 pt-2 md:hidden">
+            <SidebarNav tone="dark" onNavigate={() => setMenuOpen(false)} />
           </div>
         )}
       </nav>
 
-      <Outlet />
+      <div className="flex">
+        <Sidebar />
+        <main className="min-w-0 flex-1">
+          <Outlet />
+        </main>
+      </div>
 
       {loggingOut && (
         <div
