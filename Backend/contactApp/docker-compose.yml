@@ -3,12 +3,14 @@ services:
     image: postgres:16
     container_name: 10pearls-postgres
     restart: unless-stopped
+    # Uses the same DB_* variables as the backend's .env, so there is only one password to keep in sync.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-10pearls}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    # Only reachable from this machine, not from other devices on the network.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

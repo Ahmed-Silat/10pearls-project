@@ -3,6 +3,7 @@ package com._pearls.contactApp.Service;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
+import com._pearls.contactApp.ExceptionHandling.DuplicateResourceException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
@@ -31,11 +32,26 @@ public class ContactService {
     private static final String SORT_AZ = "A-Z";
     private static final String SORT_ZA = "Z-A";
 
+    static final int MAX_PAGE_SIZE = 100;
+    static final String DUPLICATE_PHONE = "You already have a contact with this phone number";
+    static final String DUPLICATE_EMAIL = "You already have a contact with this email";
+
+    /** Used as "no contact to exclude" when checking a new contact for duplicates; real ids start at 1. */
+    private static final long NEW_CONTACT = 0L;
+
     @Transactional(readOnly = true)
     public PaginationDto<ContactDto> getContactsByUserId(Long userId, String search, String sortBy, int page, int size) {
-        Sort sort = sortBy != null && SORT_ZA.equalsIgnoreCase(sortBy)
+        // Out-of-range values are clamped rather than rejected: a huge size would load every contact at once,
+        // and page 0 or below would otherwise make PageRequest throw.
+        page = Math.max(page, 1);
+        size = Math.clamp(size, 1, MAX_PAGE_SIZE);
+
+        // Contacts with the same first name are ordered by id, so they keep the same order on every page load
+        // and none is repeated or skipped when paging.
+        Sort sort = (sortBy != null && SORT_ZA.equalsIgnoreCase(sortBy)
                 ? Sort.by(Sort.Direction.DESC, "firstName")
-                : Sort.by(Sort.Direction.ASC, "firstName");
+                : Sort.by(Sort.Direction.ASC, "firstName"))
+                .and(Sort.by(Sort.Direction.ASC, "id"));
 
         Pageable pageable = PageRequest.of(page - 1, size, sort);
 
@@ -69,6 +85,7 @@ public class ContactService {
     public ContactDto createContact(Long userId, ContactRequest request) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
+        rejectDuplicates(userId, NEW_CONTACT, request);
         Contact contact = Contact.builder()
                 .firstName(normalize(request.getFirstName()))
                 .lastName(normalize(request.getLastName()))
@@ -83,6 +100,7 @@ public class ContactService {
     @Transactional
     public ContactDto updateContact(Long id, Long userId, ContactRequest request) {
         Contact contact = findOwnedContact(id, userId);
+        rejectDuplicates(userId, id, request);
         contact.setFirstName(normalize(request.getFirstName()));
         contact.setLastName(normalize(request.getLastName()));
         contact.setEmail(normalize(request.getEmail()));
@@ -95,6 +113,22 @@ public class ContactService {
     public void deleteContact(Long id, Long userId) {
         Contact contact = findOwnedContact(id, userId);
         contactRepo.delete(contact);
+    }
+
+    /**
+     * Stops the user saving the same person twice: another of their contacts already has this phone number
+     * (compared by digits only, so "0300-1234567" and "03001234567" match) or this email.
+     */
+    private void rejectDuplicates(Long userId, long excludeContactId, ContactRequest request) {
+        String phoneDigits = request.getPhone() == null ? "" : request.getPhone().replaceAll("\\D", "");
+        if (!phoneDigits.isEmpty() && contactRepo.existsPhoneForUser(userId, phoneDigits, excludeContactId)) {
+            throw new DuplicateResourceException(DUPLICATE_PHONE);
+        }
+        String email = normalize(request.getEmail());
+        if (email != null && !email.isEmpty()
+                && contactRepo.existsByUser_IdAndEmailIgnoreCaseAndIdNot(userId, email, excludeContactId)) {
+            throw new DuplicateResourceException(DUPLICATE_EMAIL);
+        }
     }
 
     /**

@@ -43,3 +43,13 @@ test("disables every input, button and link while the signup request is in fligh
   expect(loginLink).toHaveAttribute("aria-disabled", "true");
   expect(loginLink).toHaveAttribute("tabindex", "-1");
 });
+
+test("tells visitors who already have an account to log in", () => {
+  render(
+    <MemoryRouter>
+      <SignUp />
+    </MemoryRouter>
+  );
+  expect(screen.getByText(/already have an account\?/i)).toBeInTheDocument();
+  expect(screen.queryByText(/doesn't have an account/i)).not.toBeInTheDocument();
+});

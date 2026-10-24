@@ -6,6 +6,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -105,9 +108,32 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, "Operation violates a database constraint");
     }
 
+    /** The exception message is internal (it can name classes or fields), so it is logged rather than returned. */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Object> handleIllegalArgument(IllegalArgumentException ex) {
-        return error(HttpStatus.BAD_REQUEST, ex.getMessage());
+        log.warn("Bad request: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, "Invalid request");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Object> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
+        ResponseEntity<Object> response = error(HttpStatus.METHOD_NOT_ALLOWED,
+                "Method " + ex.getMethod() + " is not allowed on this endpoint");
+        HttpHeaders headers = new HttpHeaders();
+        if (ex.getSupportedHttpMethods() != null) {
+            headers.setAllow(ex.getSupportedHttpMethods());
+        }
+        return new ResponseEntity<>(response.getBody(), headers, HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<Object> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content type not supported; send JSON");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<Object> handleNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return error(HttpStatus.NOT_ACCEPTABLE, "Responses are only available as JSON");
     }
 
     @ExceptionHandler(Exception.class)

@@ -3,6 +3,7 @@ package com._pearls.contactApp.Service;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
+import com._pearls.contactApp.ExceptionHandling.DuplicateResourceException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
@@ -87,7 +88,105 @@ class ContactServiceTest {
         contactService.getContactsByUserId(1L, null, null, 1, 10);
 
         verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
-                Sort.by(Sort.Direction.ASC, "firstName").equals(p.getSort())));
+                Sort.by(Sort.Direction.ASC, "firstName").and(Sort.by(Sort.Direction.ASC, "id")).equals(p.getSort())));
+    }
+
+    @Test
+    void getContactsByUserId_zToA_stillBreaksTiesById() {
+        // Without a tiebreaker, two "Ali"s can swap places between page loads and one gets shown twice.
+        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, null, "Z-A", 1, 10);
+
+        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+                Sort.by(Sort.Direction.DESC, "firstName").and(Sort.by(Sort.Direction.ASC, "id")).equals(p.getSort())));
+    }
+
+    @Test
+    void getContactsByUserId_capsHugePageSizes() {
+        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, 1, 10_000_000);
+
+        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+                p.getPageSize() == ContactService.MAX_PAGE_SIZE));
+        assertThat(result.getContactsPerPage()).isEqualTo(ContactService.MAX_PAGE_SIZE);
+    }
+
+    @Test
+    void getContactsByUserId_pageZeroOrNegative_isTreatedAsFirstPage() {
+        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, -3, 0);
+
+        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+                p.getPageNumber() == 0 && p.getPageSize() == 1));
+        assertThat(result.getCurrentPage()).isEqualTo(1);
+    }
+
+    @Test
+    void createContact_samePhoneInAnotherFormat_isRejected() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("John");
+        request.setPhone("0300-123 4567");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.existsPhoneForUser(1L, "03001234567", 0L)).thenReturn(true);
+
+        assertThatThrownBy(() -> contactService.createContact(1L, request))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessage(ContactService.DUPLICATE_PHONE);
+        verify(contactRepo, never()).save(any());
+    }
+
+    @Test
+    void createContact_sameEmail_isRejected() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("John");
+        request.setPhone("0300");
+        request.setEmail(" John@Example.com ");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.existsByUser_IdAndEmailIgnoreCaseAndIdNot(1L, "john@example.com", 0L)).thenReturn(true);
+
+        assertThatThrownBy(() -> contactService.createContact(1L, request))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessage(ContactService.DUPLICATE_EMAIL);
+    }
+
+    @Test
+    void createContact_withoutEmail_skipsTheEmailCheck() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("John");
+        request.setPhone("0300");
+        request.setEmail("");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        contactService.createContact(1L, request);
+
+        verify(contactRepo, never()).existsByUser_IdAndEmailIgnoreCaseAndIdNot(any(), any(), any());
+    }
+
+    @Test
+    void updateContact_keepingItsOwnPhone_isNotADuplicate() {
+        Contact existing = contact(10L, "Alice", owner);
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Alice");
+        request.setPhone("0300");
+
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        contactService.updateContact(10L, 1L, request);
+
+        // The contact being edited is excluded from the check.
+        verify(contactRepo).existsPhoneForUser(1L, "0300", 10L);
+        verify(contactRepo).save(existing);
     }
 
     @Test

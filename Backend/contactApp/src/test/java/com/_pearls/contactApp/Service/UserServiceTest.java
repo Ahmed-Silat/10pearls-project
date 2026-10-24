@@ -351,6 +351,29 @@ class UserServiceTest {
     }
 
     @Test
+    void updateUser_emailTakenByAnotherUser_saysSoClearly() {
+        UpdateUserRequest request = profileUpdate("taken@example.com");
+        request.setCurrentPassword("old");
+
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old", "hashed-old")).thenReturn(true);
+        when(userRepo.existsByEmailIgnoreCaseAndIdNot("taken@example.com", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.updateUser(1L, request))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessage("A user with this email already exists");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void getUser_includesTheSignUpDate() {
+        user.setCreatedAt(Instant.parse("2026-01-15T10:00:00Z"));
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+
+        assertThat(userService.getUser(1L).getCreatedAt()).isEqualTo("2026-01-15T10:00:00Z");
+    }
+
+    @Test
     void updateUser_sameEmailInDifferentCase_needsNoPassword() {
         UpdateUserRequest request = profileUpdate("AHMED@example.com");
 

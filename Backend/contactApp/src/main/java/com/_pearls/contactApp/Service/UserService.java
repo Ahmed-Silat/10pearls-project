@@ -97,6 +97,9 @@ public class UserService {
         if (!newEmail.equalsIgnoreCase(user.getEmail())) {
             requireCurrentPassword(user, request.getCurrentPassword(),
                     "Enter your current password to change your email");
+            if (userRepo.existsByEmailIgnoreCaseAndIdNot(newEmail, id)) {
+                throw new DuplicateResourceException("A user with this email already exists");
+            }
         }
 
         user.setFirstName(normalize(request.getFirstName()));
@@ -161,6 +164,8 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
         dto.setAddress(user.getAddress());
+        // Accounts created before the column existed have no date; the profile then hides "Member since".
+        dto.setCreatedAt(user.getCreatedAt() == null ? null : user.getCreatedAt().toString());
         return dto;
     }
 
