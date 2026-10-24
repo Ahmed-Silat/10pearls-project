@@ -47,7 +47,7 @@ beforeEach(() => {
 const waitForIdle = () =>
   waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
 
-// getContactsByUserId(userId, sortBy, search, page, size)
+// getContactsByUserId(userId, sortBy, search, page, size, filter)
 const requestedPages = () => getContactsByUserId.mock.calls.map((call) => call[3]);
 
 test("treats an invalid page in the URL as page 1", async () => {
@@ -57,7 +57,7 @@ test("treats an invalid page in the URL as page 1", async () => {
 
   await screen.findByText("ali");
   await waitForIdle();
-  expect(getContactsByUserId).toHaveBeenCalledWith("user-1", "", "", 1, 10);
+  expect(getContactsByUserId).toHaveBeenCalledWith("user-1", "", "", 1, 10, "all");
 });
 
 test("goes to the last existing page when the current page is empty", async () => {
@@ -87,7 +87,7 @@ test("changing the sort order goes back to page 1", async () => {
   fireEvent.click(screen.getByRole("option", { name: "Name (Z–A)" }));
 
   await waitFor(() =>
-    expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "Z-A", "", 1, 10)
+    expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "Z-A", "", 1, 10, "all")
   );
   await waitForIdle();
 });
@@ -126,7 +126,7 @@ test("clicking a page number loads that page", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "Page 3" }));
 
-  await waitFor(() => expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "", "", 3, 10));
+  await waitFor(() => expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "", "", 3, 10, "all"));
   await waitForIdle();
   expect(window.scrollTo).toHaveBeenCalled();
 });
@@ -139,7 +139,7 @@ test("uses the number of cards that fit the screen as the page size", async () =
   await screen.findByText("ali");
   await waitForIdle();
 
-  expect(getContactsByUserId).toHaveBeenCalledWith("user-1", "", "", 1, 8);
+  expect(getContactsByUserId).toHaveBeenCalledWith("user-1", "", "", 1, 8, "all");
 });
 
 test("when the cards per page change, stays near the contacts being viewed", async () => {
@@ -156,6 +156,32 @@ test("when the cards per page change, stays near the contacts being viewed", asy
   mockCardsPerPage = 4;
   rerender(dashboardAt("/?page=3"));
 
-  await waitFor(() => expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "", "", 6, 4));
+  await waitFor(() => expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "", "", 6, 4, "all"));
   await waitForIdle();
+});
+
+describe("Favorites page", () => {
+  const renderFavorites = () =>
+    render(
+      <MemoryRouter initialEntries={["/favorites"]}>
+        <Dashboard view="favorites" />
+      </MemoryRouter>
+    );
+
+  test("asks only for starred contacts and says it's the Favorites page", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [contact("c1", "ali")], totalContacts: 1 }));
+    renderFavorites();
+
+    await waitForIdle();
+    expect(getContactsByUserId).toHaveBeenCalledWith("user-1", "", "", 1, 10, "favorites");
+    expect(screen.getByRole("heading", { level: 1, name: "Favorites" })).toBeInTheDocument();
+  });
+
+  test("with nothing starred, explains how to add favorites", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [], totalContacts: 0, totalPages: 0 }));
+    renderFavorites();
+
+    expect(await screen.findByText("No favorites yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to all contacts" })).toHaveAttribute("href", "/");
+  });
 });

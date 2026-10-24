@@ -1,6 +1,7 @@
 package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Config.AuthUser;
+import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.ExceptionHandling.GlobalExceptionHandler;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,7 +91,7 @@ class ContactControllerTest {
         page.setContactsPerPage(10);
         page.setCurrentPage(1);
 
-        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10))).thenReturn(page);
+        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("all"))).thenReturn(page);
 
         mockMvc.perform(asUser(get("/contact/user/{id}", 1L), 1L))
                 .andExpect(status().isOk())
@@ -107,7 +109,7 @@ class ContactControllerTest {
         mockMvc.perform(asUser(get("/contact/user/{id}", 2L), 1L))
                 .andExpect(status().isForbidden());
 
-        verify(contactService, never()).getContactsByUserId(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        verify(contactService, never()).getContactsByUserId(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 
     @Test
@@ -155,5 +157,86 @@ class ContactControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(contactService).deleteContact(10L, 1L);
+    }
+
+    @Test
+    void setFavorite_returnsUpdatedContact() throws Exception {
+        ContactDto starred = sampleContact(10L);
+        starred.setFavorite(true);
+        when(contactService.setFavorite(10L, 1L, true)).thenReturn(starred);
+
+        mockMvc.perform(asUser(patch("/contact/{id}/favorite", 10L), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"favorite\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.favorite", org.hamcrest.Matchers.is(true)));
+    }
+
+    @Test
+    void getRecentlyDeleted_returnsTheSignedInUsersList() throws Exception {
+        PaginationDto<ContactDto> page = new PaginationDto<>();
+        ContactDto deleted = sampleContact(10L);
+        deleted.setDeletedAt("2026-10-24T10:00:00Z");
+        deleted.setDeletesPermanentlyAt("2026-11-23T10:00:00Z");
+        page.setContacts(List.of(deleted));
+        page.setTotalContacts(1);
+        page.setTotalPages(1);
+        page.setCurrentPage(1);
+        when(contactService.getRecentlyDeleted(1L, 1)).thenReturn(page);
+
+        mockMvc.perform(asUser(get("/contact/deleted"), 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contacts[0].id", org.hamcrest.Matchers.is(10)))
+                .andExpect(jsonPath("$.contacts[0].deletesPermanentlyAt",
+                        org.hamcrest.Matchers.is("2026-11-23T10:00:00Z")));
+    }
+
+    @Test
+    void deletePermanently_returns204() throws Exception {
+        mockMvc.perform(asUser(delete("/contact/deleted/{id}", 10L), 1L))
+                .andExpect(status().isNoContent());
+
+        verify(contactService).deletePermanently(10L, 1L);
+    }
+
+    @Test
+    void restoreContact_returnsTheRestoredContact() throws Exception {
+        when(contactService.restoreContact(10L, 1L)).thenReturn(sampleContact(10L));
+
+        mockMvc.perform(asUser(post("/contact/{id}/restore", 10L), 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(10)));
+    }
+
+    @Test
+    void getContactsByUserId_passesTheFilterThrough() throws Exception {
+        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("favorites")))
+                .thenReturn(new PaginationDto<>());
+
+        mockMvc.perform(asUser(get("/contact/user/{id}", 1L).param("filter", "favorites"), 1L))
+                .andExpect(status().isOk());
+
+        verify(contactService).getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("favorites"));
+    }
+
+    @Test
+    void getCounts_returnsEachSection() throws Exception {
+        when(contactService.getCounts(1L)).thenReturn(new ContactCountsDto(24, 5, 3));
+
+        mockMvc.perform(asUser(get("/contact/counts"), 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.all", org.hamcrest.Matchers.is(24)))
+                .andExpect(jsonPath("$.favorites", org.hamcrest.Matchers.is(5)))
+                .andExpect(jsonPath("$.recentlyDeleted", org.hamcrest.Matchers.is(3)));
+    }
+
+    @Test
+    void setFavorite_withoutAValue_returns400() throws Exception {
+        mockMvc.perform(asUser(patch("/contact/{id}/favorite", 10L), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(contactService, never()).setFavorite(any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 }

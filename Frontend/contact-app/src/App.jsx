@@ -10,6 +10,7 @@ import UserProfile from "./components/user-profile/UserProfile";
 import Header from "./components/header/Header";
 import Pagination from "./components/pagination/Pagination";
 import NotFound from "./components/not-found/NotFound";
+import RecentlyDeleted from "./components/recently-deleted/RecentlyDeleted";
 
 function App() {
   return (
@@ -24,9 +25,12 @@ function App() {
         <Route element={<PrivateRoutes />}>
           <Route element={<Header />}>
             {/* <Route element={<Pagination />}> */}
-            <Route path="/" element={<Dashboard />} />
+            {/* Keyed so switching sections starts fresh instead of briefly showing the other list. */}
+            <Route path="/" element={<Dashboard key="all" view="all" />} />
+            <Route path="/favorites" element={<Dashboard key="favorites" view="favorites" />} />
             {/* </Route> */}
             <Route path="/user-profile" element={<UserProfile />} />
+            <Route path="/recently-deleted" element={<RecentlyDeleted />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFound />} />

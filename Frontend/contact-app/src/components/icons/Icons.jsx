@@ -22,6 +22,8 @@ export {
   FaArrowDownZA as SortZAIcon,
   FaHouse as HomeIcon,
   FaMagnifyingGlassLocation as LostIcon,
+  FaStar as StarIcon,
+  FaRegStar as StarOutlineIcon,
 } from "react-icons/fa6";
 
 export { FaGoogle as GoogleIcon } from "react-icons/fa";

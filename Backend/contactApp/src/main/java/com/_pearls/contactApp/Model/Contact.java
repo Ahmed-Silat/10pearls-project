@@ -16,12 +16,20 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Deleted contacts stay in the table for a short grace period so the delete can be undone. The restriction
+ * below hides them from every entity query (lists, search, find by id, duplicate checks); only the native
+ * queries in ContactRepo that restore or purge them can see them.
+ */
 @Entity
 @Table(name = "contacts", indexes = @Index(name = "idx_contacts_user_id", columnList = "user_id"))
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -52,6 +60,14 @@ public class Contact {
 
     @Column
     private String address;
+
+    /** Starred by the user; starred contacts are listed on the Favorites page. */
+    @Column(name = "favorite", nullable = false)
+    private boolean favorite;
+
+    /** When the user deleted it; null while the contact is live. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)

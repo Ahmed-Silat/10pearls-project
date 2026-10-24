@@ -1,5 +1,6 @@
 package com._pearls.contactApp.Service;
 
+import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
@@ -15,8 +16,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static com._pearls.contactApp.Util.TextUtils.normalize;
 import static com._pearls.contactApp.Util.TextUtils.trim;
@@ -33,21 +38,35 @@ public class ContactService {
     private static final String SORT_ZA = "Z-A";
 
     static final int MAX_PAGE_SIZE = 100;
+    static final String FILTER_FAVORITES = "favorites";
     static final String DUPLICATE_PHONE = "You already have a contact with this phone number";
     static final String DUPLICATE_EMAIL = "You already have a contact with this email";
+
+    /** How long a deleted contact stays in Recently deleted, restorable, before it is removed for good. */
+    static final Duration RETENTION = Duration.ofDays(30);
+
+    static final int RECENTLY_DELETED_PAGE_SIZE = 20;
+    static final String NO_LONGER_RESTORABLE = "This contact is no longer in Recently deleted";
 
     /** Used as "no contact to exclude" when checking a new contact for duplicates; real ids start at 1. */
     private static final long NEW_CONTACT = 0L;
 
+    /**
+     * One page of the user's contacts. {@code filter} picks the sidebar section: {@value #FILTER_FAVORITES} for
+     * starred contacts only; anything else (normally "all") for every contact.
+     */
     @Transactional(readOnly = true)
-    public PaginationDto<ContactDto> getContactsByUserId(Long userId, String search, String sortBy, int page, int size) {
+    public PaginationDto<ContactDto> getContactsByUserId(Long userId, String search, String sortBy, int page, int size,
+                                                         String filter) {
+        boolean favoritesOnly = FILTER_FAVORITES.equalsIgnoreCase(filter);
         // Out-of-range values are clamped rather than rejected: a huge size would load every contact at once,
         // and page 0 or below would otherwise make PageRequest throw.
         page = Math.max(page, 1);
         size = Math.clamp(size, 1, MAX_PAGE_SIZE);
 
-        // Contacts with the same first name are ordered by id, so they keep the same order on every page load
-        // and none is repeated or skipped when paging.
+        // Plain name order; starred contacts are not pinned, as they have their own Favorites page. Contacts with
+        // the same first name are ordered by id, so they keep the same order on every page load and none is
+        // repeated or skipped when paging.
         Sort sort = (sortBy != null && SORT_ZA.equalsIgnoreCase(sortBy)
                 ? Sort.by(Sort.Direction.DESC, "firstName")
                 : Sort.by(Sort.Direction.ASC, "firstName"))
@@ -62,9 +81,9 @@ public class ContactService {
                     .replace("\\", "\\\\")
                     .replace("%", "\\%")
                     .replace("_", "\\_");
-            result = contactRepo.searchByUserId(userId, escaped + "%", pageable);
+            result = contactRepo.searchByUserId(userId, escaped + "%", favoritesOnly, pageable);
         } else {
-            result = contactRepo.findAllByUser_Id(userId, pageable);
+            result = contactRepo.findForUser(userId, favoritesOnly, pageable);
         }
 
         PaginationDto<ContactDto> dto = new PaginationDto<>();
@@ -76,6 +95,15 @@ public class ContactService {
         return dto;
     }
 
+    /** The numbers shown next to each sidebar section. */
+    @Transactional(readOnly = true)
+    public ContactCountsDto getCounts(Long userId) {
+        return new ContactCountsDto(
+                contactRepo.countByUser_Id(userId),
+                contactRepo.countByUser_IdAndFavoriteTrue(userId),
+                contactRepo.countDeletedByUserId(userId, retentionCutoff()));
+    }
+
     @Transactional(readOnly = true)
     public ContactDto getContactByIdAndUser(Long id, Long userId) {
         return toDto(findOwnedContact(id, userId));
@@ -85,7 +113,7 @@ public class ContactService {
     public ContactDto createContact(Long userId, ContactRequest request) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
-        rejectDuplicates(userId, NEW_CONTACT, request);
+        rejectDuplicates(userId, NEW_CONTACT, request.getPhone(), request.getEmail());
         Contact contact = Contact.builder()
                 .firstName(normalize(request.getFirstName()))
                 .lastName(normalize(request.getLastName()))
@@ -100,7 +128,7 @@ public class ContactService {
     @Transactional
     public ContactDto updateContact(Long id, Long userId, ContactRequest request) {
         Contact contact = findOwnedContact(id, userId);
-        rejectDuplicates(userId, id, request);
+        rejectDuplicates(userId, id, request.getPhone(), request.getEmail());
         contact.setFirstName(normalize(request.getFirstName()));
         contact.setLastName(normalize(request.getLastName()));
         contact.setEmail(normalize(request.getEmail()));
@@ -109,22 +137,92 @@ public class ContactService {
         return toDto(contactRepo.save(contact));
     }
 
+    /** Stars or unstars one of the user's contacts. */
+    @Transactional
+    public ContactDto setFavorite(Long id, Long userId, boolean favorite) {
+        Contact contact = findOwnedContact(id, userId);
+        contact.setFavorite(favorite);
+        return toDto(contactRepo.save(contact));
+    }
+
+    /**
+     * Moves the contact to Recently deleted: it disappears from the contact list straight away and can be
+     * restored for {@link #RETENTION}, after which {@link #purgeDeletedContacts()} removes it for good.
+     */
     @Transactional
     public void deleteContact(Long id, Long userId) {
         Contact contact = findOwnedContact(id, userId);
-        contactRepo.delete(contact);
+        contact.setDeletedAt(Instant.now());
+        contactRepo.save(contact);
+    }
+
+    /** The user's Recently deleted list, most recently deleted first. */
+    @Transactional(readOnly = true)
+    public PaginationDto<ContactDto> getRecentlyDeleted(Long userId, int page) {
+        page = Math.max(page, 1);
+        Page<Contact> result = contactRepo.findDeletedByUserId(userId, retentionCutoff(),
+                PageRequest.of(page - 1, RECENTLY_DELETED_PAGE_SIZE));
+
+        PaginationDto<ContactDto> dto = new PaginationDto<>();
+        dto.setContacts(result.getContent().stream().map(this::toDto).toList());
+        dto.setTotalContacts(result.getTotalElements());
+        dto.setTotalPages(result.getTotalPages());
+        dto.setContactsPerPage(RECENTLY_DELETED_PAGE_SIZE);
+        dto.setCurrentPage(page);
+        return dto;
+    }
+
+    /**
+     * Brings a contact back from Recently deleted with its id and star. 404 if it isn't there (or has expired);
+     * 409 if a contact with the same phone or email was added in the meantime.
+     */
+    @Transactional
+    public ContactDto restoreContact(Long id, Long userId) {
+        Contact contact = contactRepo.findDeletedByIdAndUserId(id, userId)
+                .filter(deleted -> deleted.getDeletedAt().isAfter(retentionCutoff()))
+                .orElseThrow(() -> new ResourceNotFoundException(NO_LONGER_RESTORABLE));
+        rejectDuplicates(userId, id, contact.getPhone(), contact.getEmail());
+        contact.setDeletedAt(null);
+        return toDto(contactRepo.save(contact));
+    }
+
+    /**
+     * Deletes a contact from Recently deleted for good, without waiting for the 30 days. Only works on contacts
+     * already in Recently deleted, so a live contact can't skip that step.
+     */
+    @Transactional
+    public void deletePermanently(Long id, Long userId) {
+        if (contactRepo.deleteDeletedByIdAndUserId(id, userId) == 0) {
+            throw new ResourceNotFoundException(NO_LONGER_RESTORABLE);
+        }
+        log.info("User {} permanently deleted contact {}", userId, id);
+    }
+
+    /** Removes contacts that have been in Recently deleted for longer than {@link #RETENTION}. Runs hourly. */
+    @Scheduled(fixedDelayString = "PT1H", initialDelayString = "PT1M")
+    @Transactional
+    public void purgeDeletedContacts() {
+        int removed = contactRepo.purgeDeletedBefore(retentionCutoff());
+        if (removed > 0) {
+            log.info("Permanently removed {} contact(s) deleted more than {} days ago", removed, RETENTION.toDays());
+        }
+    }
+
+    /** Contacts deleted before this moment have expired. */
+    private static Instant retentionCutoff() {
+        return Instant.now().minus(RETENTION);
     }
 
     /**
      * Stops the user saving the same person twice: another of their contacts already has this phone number
      * (compared by digits only, so "0300-1234567" and "03001234567" match) or this email.
      */
-    private void rejectDuplicates(Long userId, long excludeContactId, ContactRequest request) {
-        String phoneDigits = request.getPhone() == null ? "" : request.getPhone().replaceAll("\\D", "");
+    private void rejectDuplicates(Long userId, long excludeContactId, String phone, String rawEmail) {
+        String phoneDigits = phone == null ? "" : phone.replaceAll("\\D", "");
         if (!phoneDigits.isEmpty() && contactRepo.existsPhoneForUser(userId, phoneDigits, excludeContactId)) {
             throw new DuplicateResourceException(DUPLICATE_PHONE);
         }
-        String email = normalize(request.getEmail());
+        String email = normalize(rawEmail);
         if (email != null && !email.isEmpty()
                 && contactRepo.existsByUser_IdAndEmailIgnoreCaseAndIdNot(userId, email, excludeContactId)) {
             throw new DuplicateResourceException(DUPLICATE_EMAIL);
@@ -149,6 +247,11 @@ public class ContactService {
         dto.setEmail(contact.getEmail());
         dto.setPhone(contact.getPhone());
         dto.setAddress(contact.getAddress());
+        dto.setFavorite(contact.isFavorite());
+        if (contact.getDeletedAt() != null) {
+            dto.setDeletedAt(contact.getDeletedAt().toString());
+            dto.setDeletesPermanentlyAt(contact.getDeletedAt().plus(RETENTION).toString());
+        }
         return dto;
     }
 }

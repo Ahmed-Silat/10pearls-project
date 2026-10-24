@@ -1,14 +1,29 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { EyeIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon, TrashIcon } from "../icons/Icons";
+import {
+  EyeIcon,
+  MailIcon,
+  PencilIcon,
+  PhoneIcon,
+  PinIcon,
+  StarIcon,
+  StarOutlineIcon,
+  TrashIcon,
+} from "../icons/Icons";
 import DeleteModal from "../modals/DeleteModal";
 import EditModal from "../modals/EditModal";
 import ViewContactModal from "../modals/ViewContactModal";
 import EmptyValue from "../ui/EmptyValue";
-import { getContactById } from "../../service/ContactService";
+import Highlight from "../ui/Highlight";
+import Spinner from "../ui/Spinner";
+import { getContactById, setFavorite } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
 
 const ContactCard = (props) => {
+  const [isFavorite, setIsFavorite] = useState(Boolean(props.favorite));
+  const [isSavingFavorite, setIsSavingFavorite] = useState(false);
+  useEffect(() => setIsFavorite(Boolean(props.favorite)), [props.favorite]);
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -46,9 +61,35 @@ const ContactCard = (props) => {
 
   const initials = `${props.firstName?.[0] || ""}${props.lastName?.[0] || ""}`.toUpperCase();
   const fullName = [props.firstName, props.lastName].filter(Boolean).join(" ");
+  const favoriteLabel = isFavorite
+    ? `Remove ${fullName} from favorites`
+    : `Add ${fullName} to favorites`;
+
+  /** The star shows a spinner until the change is saved and the list has caught up. */
+  const toggleFavorite = async () => {
+    if (isSavingFavorite) return;
+    const next = !isFavorite;
+    setIsSavingFavorite(true);
+    try {
+      await setFavorite(props.contactId, next);
+      setIsFavorite(next);
+      toast.success(next ? "Added to favorites" : "Removed from favorites");
+      // Reload quietly (no full-page loader), so on the Favorites page an unstarred contact drops off the list.
+      await props.fetchContacts({ silent: true });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Couldn't update favorites. Please try again."));
+    } finally {
+      setIsSavingFavorite(false);
+    }
+  };
 
   return (
-    <div data-contact-card className="group my-2 flex flex-col rounded-2xl bg-white shadow-card ring-1 ring-slate-200/70 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <div
+      data-contact-card
+      className={`group my-2 flex flex-col rounded-2xl bg-white shadow-card ring-1 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+        isFavorite ? "ring-amber-300" : "ring-slate-200/70"
+      }`}
+    >
       <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-sky-50 to-cyan-50 p-5">
         <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-cyan-600 text-base font-bold text-white shadow-md shadow-sky-600/30">
           {initials}
@@ -61,9 +102,39 @@ const ContactCard = (props) => {
             title={fullName}
             className="block w-full truncate rounded text-left text-lg font-bold capitalize text-slate-900 transition-colors hover:text-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           >
-            {fullName}
+            <Highlight text={props.firstName} query={props.highlight} />
+            {props.lastName && (
+              <>
+                {" "}
+                <Highlight text={props.lastName} query={props.highlight} />
+              </>
+            )}
           </button>
         </h2>
+        <button
+          type="button"
+          onClick={toggleFavorite}
+          disabled={isSavingFavorite}
+          aria-pressed={isFavorite}
+          aria-busy={isSavingFavorite || undefined}
+          aria-label={favoriteLabel}
+          title={
+            isSavingFavorite ? "Saving..." : isFavorite ? "Remove from favorites" : "Add to favorites"
+          }
+          className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:cursor-wait ${
+            isFavorite || isSavingFavorite
+              ? "text-amber-400 hover:bg-amber-100/60 hover:text-amber-500"
+              : "text-slate-400 hover:bg-white hover:text-amber-400"
+          }`}
+        >
+          {isSavingFavorite ? (
+            <Spinner className="h-5 w-5" />
+          ) : isFavorite ? (
+            <StarIcon className="h-5 w-5" />
+          ) : (
+            <StarOutlineIcon className="h-5 w-5" />
+          )}
+        </button>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-5 text-sm text-slate-600">
@@ -71,19 +142,25 @@ const ContactCard = (props) => {
           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
             <PhoneIcon className="h-4 w-4" />
           </span>
-          <span className="truncate">{props.phone || <EmptyValue />}</span>
+          <span className="truncate">
+            {props.phone ? <Highlight text={props.phone} query={props.highlight} /> : <EmptyValue />}
+          </span>
         </p>
         <p className="flex items-center gap-3 min-w-0">
           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
             <MailIcon className="h-4 w-4" />
           </span>
-          <span className="truncate">{props.email || <EmptyValue />}</span>
+          <span className="truncate">
+            {props.email ? <Highlight text={props.email} query={props.highlight} /> : <EmptyValue />}
+          </span>
         </p>
         <p className="flex items-center gap-3 min-w-0">
           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
             <PinIcon className="h-4 w-4" />
           </span>
-          <span className="truncate">{props.address || <EmptyValue />}</span>
+          <span className="truncate">
+            {props.address ? <Highlight text={props.address} query={props.highlight} /> : <EmptyValue />}
+          </span>
         </p>
       </div>
 

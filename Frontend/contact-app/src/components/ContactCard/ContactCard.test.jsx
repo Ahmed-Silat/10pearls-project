@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import ContactCard from "./ContactCard";
-import { getContactById } from "../../service/ContactService";
+import { getContactById, setFavorite } from "../../service/ContactService";
 
 jest.mock("../../service/ContactService");
 
@@ -146,4 +146,80 @@ test("a response that arrives after the edit modal was closed is ignored", async
   await act(async () => {});
 
   expect(screen.queryByRole("heading", { name: "Update Contact" })).not.toBeInTheDocument();
+});
+
+describe("favorites", () => {
+  afterEach(() => setFavorite.mockReset());
+
+  const star = () => screen.getByRole("button", { name: /favorites$/ });
+
+  test("an unstarred contact shows an empty star", () => {
+    renderCard();
+    expect(star()).toHaveAttribute("aria-pressed", "false");
+    expect(star()).toHaveAccessibleName(`Add ${LONG_NAME} to favorites`);
+  });
+
+  test("clicking the star saves it and quietly reloads the list", async () => {
+    setFavorite.mockResolvedValue({});
+    const fetchContacts = jest.fn();
+    renderCard({ fetchContacts });
+
+    fireEvent.click(star());
+
+    await waitFor(() => expect(star()).toHaveAttribute("aria-pressed", "true"));
+    expect(fetchContacts).toHaveBeenCalledWith({ silent: true });
+    expect(setFavorite).toHaveBeenCalledWith("c1", true);
+  });
+
+  test("while saving, the star shows a spinner and can't be clicked again", async () => {
+    let finishSaving;
+    setFavorite.mockReturnValue(new Promise((resolve) => (finishSaving = resolve)));
+    renderCard();
+
+    fireEvent.click(star());
+
+    expect(star()).toHaveAttribute("aria-busy", "true");
+    expect(star()).toBeDisabled();
+    expect(star()).toHaveAttribute("title", "Saving...");
+    expect(star().querySelector("svg.animate-spin")).not.toBeNull();
+    // Not shown as starred until the server has confirmed it.
+    expect(star()).toHaveAttribute("aria-pressed", "false");
+
+    await act(async () => finishSaving({}));
+
+    await waitFor(() => expect(star()).not.toHaveAttribute("aria-busy"));
+    expect(star()).toHaveAttribute("aria-pressed", "true");
+    expect(star().querySelector("svg.animate-spin")).toBeNull();
+  });
+
+  test("a starred contact can be unstarred", async () => {
+    setFavorite.mockResolvedValue({});
+    renderCard({ favorite: true });
+    expect(star()).toHaveAccessibleName(`Remove ${LONG_NAME} from favorites`);
+
+    fireEvent.click(star());
+
+    await waitFor(() => expect(setFavorite).toHaveBeenCalledWith("c1", false));
+  });
+
+  test("if saving fails, the star stays as it was", async () => {
+    setFavorite.mockRejectedValue(new Error("offline"));
+    const fetchContacts = jest.fn();
+    renderCard({ fetchContacts });
+
+    fireEvent.click(star());
+
+    await waitFor(() => expect(star()).not.toHaveAttribute("aria-busy"));
+    expect(star()).toHaveAttribute("aria-pressed", "false");
+    expect(fetchContacts).not.toHaveBeenCalled();
+  });
+});
+
+test("while searching, the matching start of each field is highlighted", () => {
+  const { container } = renderCard({ highlight: "0300" });
+
+  const marks = [...container.querySelectorAll("mark")].map((mark) => mark.textContent);
+  expect(marks).toEqual(["0300"]);
+  // The name still reads in full for screen readers and tests.
+  expect(screen.getByRole("button", { name: LONG_NAME })).toBeInTheDocument();
 });

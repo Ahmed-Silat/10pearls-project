@@ -1,5 +1,6 @@
 package com._pearls.contactApp.Service;
 
+import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
@@ -21,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,9 +69,9 @@ class ContactServiceTest {
     void getContactsByUserId_mapsPageMetadataCorrectly() {
         List<Contact> content = List.of(contact(10L, "Alice", owner), contact(11L, "Bob", owner));
         Page<Contact> page = new PageImpl<>(content, PageRequest.of(0, 2), 5);
-        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class))).thenReturn(page);
 
-        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, "A-Z", 1, 2);
+        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, "A-Z", 1, 2, "all");
 
         assertThat(result.getContacts()).hasSize(2);
         assertThat(result.getContacts().get(0).getId()).isEqualTo(10L);
@@ -81,48 +83,105 @@ class ContactServiceTest {
     }
 
     @Test
+    void setFavorite_starsOwnContact() {
+        Contact existing = contact(10L, "Alice", owner);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ContactDto result = contactService.setFavorite(10L, 1L, true);
+
+        assertThat(existing.isFavorite()).isTrue();
+        assertThat(result.isFavorite()).isTrue();
+    }
+
+    @Test
+    void setFavorite_canUnstar() {
+        Contact existing = contact(10L, "Alice", owner);
+        existing.setFavorite(true);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.setFavorite(10L, 1L, false).isFavorite()).isFalse();
+    }
+
+    @Test
+    void setFavorite_otherUsersContact_looksLikeItDoesNotExist() {
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(contact(10L, "Alice", User.builder().id(2L).build())));
+
+        assertThatThrownBy(() -> contactService.setFavorite(10L, 1L, true))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(contactRepo, never()).save(any());
+    }
+
+    @Test
+    void editingAContact_keepsItsStar() {
+        // ContactRequest has no favorite field, so saving edits must not unstar the contact.
+        Contact existing = contact(10L, "Alice", owner);
+        existing.setFavorite(true);
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Alicia");
+        request.setPhone("0300");
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.updateContact(10L, 1L, request).isFavorite()).isTrue();
+    }
+
+    @Test
     void getContactsByUserId_usesAscendingSortByDefault() {
         Page<Contact> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
-        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class))).thenReturn(page);
 
-        contactService.getContactsByUserId(1L, null, null, 1, 10);
+        contactService.getContactsByUserId(1L, null, null, 1, 10, "all");
 
-        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 Sort.by(Sort.Direction.ASC, "firstName").and(Sort.by(Sort.Direction.ASC, "id")).equals(p.getSort())));
+    }
+
+    @Test
+    void getContactsByUserId_doesNotPinFavoritesToTheTop() {
+        // Favorites have their own page, so in All contacts a starred "Zara" stays after "Ali".
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, null, null, 1, 10, "all");
+
+        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
+                p.getSort().getOrderFor("favorite") == null));
     }
 
     @Test
     void getContactsByUserId_zToA_stillBreaksTiesById() {
         // Without a tiebreaker, two "Ali"s can swap places between page loads and one gets shown twice.
-        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
-        contactService.getContactsByUserId(1L, null, "Z-A", 1, 10);
+        contactService.getContactsByUserId(1L, null, "Z-A", 1, 10, "all");
 
-        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 Sort.by(Sort.Direction.DESC, "firstName").and(Sort.by(Sort.Direction.ASC, "id")).equals(p.getSort())));
     }
 
     @Test
     void getContactsByUserId_capsHugePageSizes() {
-        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
 
-        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, 1, 10_000_000);
+        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, 1, 10_000_000, "all");
 
-        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 p.getPageSize() == ContactService.MAX_PAGE_SIZE));
         assertThat(result.getContactsPerPage()).isEqualTo(ContactService.MAX_PAGE_SIZE);
     }
 
     @Test
     void getContactsByUserId_pageZeroOrNegative_isTreatedAsFirstPage() {
-        when(contactRepo.findAllByUser_Id(eq(1L), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
-        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, -3, 0);
+        PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, -3, 0, "all");
 
-        verify(contactRepo).findAllByUser_Id(eq(1L), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 p.getPageNumber() == 0 && p.getPageSize() == 1));
         assertThat(result.getCurrentPage()).isEqualTo(1);
     }
@@ -193,12 +252,12 @@ class ContactServiceTest {
     void getContactsByUserId_searchEscapesLikeWildcards() {
         Page<Contact> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
         // Input "100%" must be escaped to the SQL pattern "100\%%" (literal %, then wildcard).
-        when(contactRepo.searchByUserId(eq(1L), eq("100\\%%"), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.searchByUserId(eq(1L), eq("100\\%%"), eq(false), any(Pageable.class))).thenReturn(page);
 
-        contactService.getContactsByUserId(1L, "100%", null, 1, 10);
+        contactService.getContactsByUserId(1L, "100%", null, 1, 10, "all");
 
-        verify(contactRepo).searchByUserId(eq(1L), eq("100\\%%"), any(Pageable.class));
-        verify(contactRepo, never()).findAllByUser_Id(any(), any());
+        verify(contactRepo).searchByUserId(eq(1L), eq("100\\%%"), eq(false), any(Pageable.class));
+        verify(contactRepo, never()).findForUser(any(), org.mockito.ArgumentMatchers.anyBoolean(), any());
     }
 
     @Test
@@ -331,14 +390,16 @@ class ContactServiceTest {
     }
 
     @Test
-    void deleteContact_deletesOwnedContact() {
+    void deleteContact_hidesItInsteadOfRemovingIt_soItCanBeUndone() {
         Contact existing = contact(10L, "Alice", owner);
         when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        Instant before = Instant.now();
 
         contactService.deleteContact(10L, 1L);
 
-        verify(contactRepo).delete(existing);
-        verify(contactRepo, never()).save(any());
+        assertThat(existing.getDeletedAt()).isNotNull().isAfterOrEqualTo(before);
+        verify(contactRepo).save(existing);
+        verify(contactRepo, never()).delete(any(Contact.class));
     }
 
     @Test
@@ -347,5 +408,160 @@ class ContactServiceTest {
 
         assertThatThrownBy(() -> contactService.deleteContact(999L, 1L))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    private Contact deletedSecondsAgo(long seconds) {
+        Contact deleted = contact(10L, "Alice", owner);
+        deleted.setFavorite(true);
+        deleted.setDeletedAt(Instant.now().minusSeconds(seconds));
+        return deleted;
+    }
+
+    @Test
+    void restoreContact_bringsItBackWithItsStar() {
+        Contact deleted = deletedSecondsAgo(5);
+        when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ContactDto restored = contactService.restoreContact(10L, 1L);
+
+        assertThat(deleted.getDeletedAt()).isNull();
+        assertThat(restored.getId()).isEqualTo(10L);
+        assertThat(restored.isFavorite()).isTrue();
+    }
+
+    @Test
+    void restoreContact_after30Days_isNotFound() {
+        Contact deleted = deletedSecondsAgo(ContactService.RETENTION.toSeconds() + 1);
+        when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
+
+        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(contactRepo, never()).save(any());
+    }
+
+    @Test
+    void restoreContact_notDeletedOrSomeoneElses_isNotFound() {
+        when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void restoreContact_whenTheSamePhoneWasAddedSince_isRejected() {
+        Contact deleted = deletedSecondsAgo(5);
+        when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
+        when(contactRepo.existsPhoneForUser(1L, "0300", 10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessage(ContactService.DUPLICATE_PHONE);
+        assertThat(deleted.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void purgeDeletedContacts_removesOnlyThoseOlderThan30Days() {
+        Instant before = Instant.now();
+
+        contactService.purgeDeletedContacts();
+
+        verify(contactRepo).purgeDeletedBefore(org.mockito.ArgumentMatchers.argThat(cutoff ->
+                !cutoff.isBefore(before.minus(ContactService.RETENTION))
+                        && !cutoff.isAfter(Instant.now().minus(ContactService.RETENTION))));
+    }
+
+    @Test
+    void retentionIs30Days() {
+        assertThat(ContactService.RETENTION).isEqualTo(java.time.Duration.ofDays(30));
+    }
+
+    @Test
+    void getRecentlyDeleted_listsDeletedContactsWithTheirPermanentDeleteDate() {
+        Contact deleted = deletedSecondsAgo(60);
+        when(contactRepo.findDeletedByUserId(eq(1L), any(Instant.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(deleted), PageRequest.of(0, 20), 1));
+
+        PaginationDto<ContactDto> result = contactService.getRecentlyDeleted(1L, 1);
+
+        ContactDto dto = result.getContacts().get(0);
+        assertThat(dto.getDeletedAt()).isEqualTo(deleted.getDeletedAt().toString());
+        assertThat(dto.getDeletesPermanentlyAt())
+                .isEqualTo(deleted.getDeletedAt().plus(ContactService.RETENTION).toString());
+        assertThat(result.getTotalContacts()).isEqualTo(1);
+        // Only contacts deleted within the last 30 days are asked for.
+        verify(contactRepo).findDeletedByUserId(eq(1L),
+                org.mockito.ArgumentMatchers.argThat(cutoff ->
+                        !cutoff.isAfter(Instant.now().minus(ContactService.RETENTION))),
+                org.mockito.ArgumentMatchers.argThat(p -> p.getPageNumber() == 0
+                        && p.getPageSize() == ContactService.RECENTLY_DELETED_PAGE_SIZE));
+    }
+
+    @Test
+    void liveContacts_haveNoDeletionDates() {
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(contact(10L, "Alice", owner)));
+
+        ContactDto dto = contactService.getContactByIdAndUser(10L, 1L);
+
+        assertThat(dto.getDeletedAt()).isNull();
+        assertThat(dto.getDeletesPermanentlyAt()).isNull();
+    }
+
+    @Test
+    void deletePermanently_removesAContactInRecentlyDeleted() {
+        when(contactRepo.deleteDeletedByIdAndUserId(10L, 1L)).thenReturn(1);
+
+        contactService.deletePermanently(10L, 1L);
+
+        verify(contactRepo).deleteDeletedByIdAndUserId(10L, 1L);
+    }
+
+    @Test
+    void deletePermanently_contactNotInRecentlyDeleted_isNotFound() {
+        // Covers live contacts, other users' contacts and ones already gone: the query matches none of them.
+        when(contactRepo.deleteDeletedByIdAndUserId(10L, 1L)).thenReturn(0);
+
+        assertThatThrownBy(() -> contactService.deletePermanently(10L, 1L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage(ContactService.NO_LONGER_RESTORABLE);
+    }
+
+    @Test
+    void favoritesFilter_listsOnlyStarredContacts() {
+        when(contactRepo.findForUser(eq(1L), eq(true), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, null, null, 1, 10, "favorites");
+
+        verify(contactRepo).findForUser(eq(1L), eq(true), any(Pageable.class));
+    }
+
+    @Test
+    void favoritesFilter_alsoAppliesToSearch() {
+        when(contactRepo.searchByUserId(eq(1L), eq("al%"), eq(true), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, "al", null, 1, 10, "favorites");
+
+        verify(contactRepo).searchByUserId(eq(1L), eq("al%"), eq(true), any(Pageable.class));
+    }
+
+    @Test
+    void unknownFilter_listsEveryContact() {
+        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, null, null, 1, 10, "something-else");
+
+        verify(contactRepo).findForUser(eq(1L), eq(false), any(Pageable.class));
+    }
+
+    @Test
+    void getCounts_returnsTheNumberInEachSidebarSection() {
+        when(contactRepo.countByUser_Id(1L)).thenReturn(24L);
+        when(contactRepo.countByUser_IdAndFavoriteTrue(1L)).thenReturn(5L);
+        when(contactRepo.countDeletedByUserId(eq(1L), any(Instant.class))).thenReturn(3L);
+
+        assertThat(contactService.getCounts(1L)).isEqualTo(new ContactCountsDto(24, 5, 3));
     }
 }

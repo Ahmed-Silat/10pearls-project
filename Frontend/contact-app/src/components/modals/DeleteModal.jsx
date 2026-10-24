@@ -2,9 +2,29 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import Button from "../button/Button";
-import { deleteContact } from "../../service/ContactService";
+import { deleteContact, restoreContact } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
 import { TrashIcon } from "../icons/Icons";
+
+/** How long the "Contact deleted" toast, and its Undo button, stays on screen. */
+export const UNDO_TOAST_MS = 8000;
+
+/**
+ * Brings a just-deleted contact back. Runs from the toast, after this modal (and often the contact's card)
+ * has gone, so it only uses values passed in, not component state.
+ */
+const undoDelete = async (contactId, reloadContacts) => {
+  // One toast that shows a spinner while restoring, then turns into the result.
+  const toastId = toast.loading("Restoring contact...");
+  try {
+    await restoreContact(contactId);
+    // Keep the spinner until the contact is back on screen.
+    await reloadContacts({ silent: true });
+    toast.success("Contact restored", { id: toastId });
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, "Couldn't restore the contact."), { id: toastId });
+  }
+};
 
 export default function DeleteModal(props) {
   const [serverError, setServerError] = useState("");
@@ -20,7 +40,12 @@ export default function DeleteModal(props) {
     setServerError("");
     try {
       await deleteContact(props.contactId);
-      toast.success("Contact deleted");
+      const { contactId, getContacts } = props;
+      toast.success("Moved to Recently deleted", {
+        description: "You can restore it from there for 30 days.",
+        duration: UNDO_TOAST_MS,
+        action: { label: "Undo", onClick: () => undoDelete(contactId, getContacts) },
+      });
       props.getContacts();
       props.onClose();
     } catch (error) {
@@ -42,12 +67,12 @@ export default function DeleteModal(props) {
               <h3 id="delete-contact-title" className="text-lg font-semibold text-slate-900">
                 Delete Contact
               </h3>
-              <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              <p className="text-xs text-slate-500">You can restore it for 30 days.</p>
             </div>
           </div>
           <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-600 ring-1 ring-slate-200">
-            Are you sure you want to delete this contact? All of its data will be
-            permanently removed.
+            This contact will move to <span className="font-semibold">Recently deleted</span>, where
+            you can restore it for 30 days. After that it&apos;s deleted permanently.
           </p>
           {serverError && (
             <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>

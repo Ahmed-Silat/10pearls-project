@@ -1,8 +1,10 @@
 package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Config.AuthUser;
+import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
+import com._pearls.contactApp.Dto.FavoriteRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
 import com._pearls.contactApp.Service.ContactService;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,9 +37,16 @@ public class ContactController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "all") String filter) {
         requireSelf(id, principal);
-        return contactService.getContactsByUserId(id, search, sortBy, page, size);
+        return contactService.getContactsByUserId(id, search, sortBy, page, size, filter);
+    }
+
+    /** How many contacts are in each sidebar section (all, favorites, recently deleted). */
+    @GetMapping("/counts")
+    public ContactCountsDto getCounts(@AuthenticationPrincipal AuthUser principal) {
+        return contactService.getCounts(principal.getId());
     }
 
     @GetMapping("/{id}")
@@ -56,6 +66,34 @@ public class ContactController {
             @Valid @RequestBody ContactRequest request,
             @AuthenticationPrincipal AuthUser principal) {
         return contactService.updateContact(id, principal.getId(), request);
+    }
+
+    /** Stars or unstars a contact: {@code {"favorite": true}}. Returns the updated contact. */
+    @PatchMapping("/{id}/favorite")
+    public ContactDto setFavorite(@PathVariable Long id,
+            @Valid @RequestBody FavoriteRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.setFavorite(id, principal.getId(), request.getFavorite());
+    }
+
+    /** The signed-in user's Recently deleted contacts, newest first, 20 per page. */
+    @GetMapping("/deleted")
+    public PaginationDto<ContactDto> getRecentlyDeleted(@RequestParam(defaultValue = "1") int page,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.getRecentlyDeleted(principal.getId(), page);
+    }
+
+    /** Deletes a contact from Recently deleted for good. */
+    @DeleteMapping("/deleted/{id}")
+    public ResponseEntity<Void> deletePermanently(@PathVariable Long id, @AuthenticationPrincipal AuthUser principal) {
+        contactService.deletePermanently(id, principal.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Moves a contact out of Recently deleted, back into the contact list. Returns the restored contact. */
+    @PostMapping("/{id}/restore")
+    public ContactDto restoreContact(@PathVariable Long id, @AuthenticationPrincipal AuthUser principal) {
+        return contactService.restoreContact(id, principal.getId());
     }
 
     @DeleteMapping("/{id}")
