@@ -14,11 +14,23 @@ export const passwordField = z
   .regex(/[a-z]/, "Password must contain a lowercase letter")
   .regex(/[0-9]/, "Password must contain a number");
 
+/**
+ * 7–15 digits, judged by the digits alone so spaces, dashes, dots and brackets don't count towards the length
+ * ("+92 (300) 123-4567" is fine). Capped at 20 characters in total, the backend's limit.
+ */
 export const phoneField = z
   .string()
   .trim()
   .min(1, "Phone number is required")
-  .regex(/^[+]?[\d\s()-]{7,15}$/, "Enter a valid phone number");
+  .max(20, "Phone number must be at most 20 characters")
+  .regex(/^\+?[\d\s().-]+$/, "Enter a valid phone number")
+  .refine((value) => {
+    const digits = value.replace(/\D/g, "").length;
+    return digits >= 7 && digits <= 15;
+  }, "Enter a valid phone number");
+
+/** Letters from any alphabet (Latin, Urdu, Arabic, ...) plus combining marks, spaces, apostrophes, dots and dashes. */
+const NAME_PATTERN = /^[\p{L}\p{M}' .-]+$/u;
 
 export const nameField = (label) =>
   z
@@ -26,14 +38,14 @@ export const nameField = (label) =>
     .trim()
     .min(1, `${label} is required`)
     .max(50, `${label} must be at most 50 characters`)
-    .regex(/^[A-Za-zÀ-ÿ' -]+$/, `${label} can only contain letters`);
+    .regex(NAME_PATTERN, `${label} can only contain letters`);
 
 export const optionalNameField = (label) =>
   z
     .string()
     .trim()
     .max(50, `${label} must be at most 50 characters`)
-    .regex(/^[A-Za-zÀ-ÿ' -]+$/, `${label} can only contain letters`)
+    .regex(NAME_PATTERN, `${label} can only contain letters`)
     .or(z.literal(""));
 
 export const optionalEmailField = emailField.or(z.literal(""));

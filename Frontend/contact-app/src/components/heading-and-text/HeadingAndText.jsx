@@ -7,7 +7,7 @@ export default function HeadingAndText(props) {
         {props.mainHeading}
       </h1>
       <p className="mt-1.5 text-sm text-slate-500">
-        Doesn&apos;t have an account yet?{" "}
+        {props.prompt}{" "}
         <TextLink to={props.link} disabled={props.disabled}>
           {props.pageName}
         </TextLink>

@@ -1,6 +1,32 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Tab from the last control goes back to the first, and Shift+Tab from the first goes to the last, so keyboard
+ * focus never wanders onto the page behind the modal.
+ */
+function keepFocusInside(event, panel) {
+  if (!panel) return;
+  const focusable = [...panel.querySelectorAll(FOCUSABLE)];
+  if (focusable.length === 0) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || !panel.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || !panel.contains(active))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 export default function Modal(props) {
   const { onClose } = props;
   const panelRef = useRef(null);
@@ -8,6 +34,7 @@ export default function Modal(props) {
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") onClose();
+      if (event.key === "Tab") keepFocusInside(event, panelRef.current);
     };
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";

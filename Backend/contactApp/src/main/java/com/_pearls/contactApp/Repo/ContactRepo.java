@@ -23,4 +23,20 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
     Page<Contact> searchByUserId(@Param("userId") Long userId, String pattern, Pageable pageable);
 
     Page<Contact> findAllByUser_Id(Long userId, Pageable pageable);
+
+    /**
+     * Whether another of the user's contacts has this phone number, comparing digits only so formatting
+     * ("0300-1234567" vs "03001234567") doesn't matter. {@code excludeId} is the contact being edited, or 0.
+     */
+    @Query(value = """
+            SELECT EXISTS (
+                SELECT 1 FROM contacts
+                WHERE user_id = :userId
+                  AND contact_id <> :excludeId
+                  AND regexp_replace(phone, '[^0-9]', '', 'g') = :phoneDigits)
+            """, nativeQuery = true)
+    boolean existsPhoneForUser(@Param("userId") Long userId, @Param("phoneDigits") String phoneDigits,
+                               @Param("excludeId") long excludeId);
+
+    boolean existsByUser_IdAndEmailIgnoreCaseAndIdNot(Long userId, String email, Long id);
 }

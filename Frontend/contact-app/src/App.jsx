@@ -4,6 +4,7 @@ import Login from "./components/login-signup/Login";
 import SignUp from "./components/login-signup/SignUp";
 import ForgotPassword from "./components/login-signup/ForgotPassword";
 import PrivateRoutes from "./routes/PrivateRoutes";
+import PublicOnlyRoutes from "./routes/PublicOnlyRoutes";
 import Dashboard from "./components/dashboard/Dashboard";
 import UserProfile from "./components/user-profile/UserProfile";
 import Header from "./components/header/Header";
@@ -15,8 +16,10 @@ function App() {
     <BrowserRouter>
       <Toaster position="top-right" richColors closeButton duration={2000} />
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<SignUp />} />
+        <Route element={<PublicOnlyRoutes />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+        </Route>
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route element={<PrivateRoutes />}>
           <Route element={<Header />}>

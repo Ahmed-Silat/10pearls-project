@@ -12,6 +12,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
@@ -53,6 +54,11 @@ public class User {
 
     @Column
     private String address;
+
+    /** When the account was created. Empty for accounts created before this was recorded. */
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
 
     /** Last password change or reset. Login tokens issued before this are no longer accepted. */
     @JsonIgnore

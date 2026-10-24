@@ -87,7 +87,13 @@ export default function Login() {
         </div>
 
         <div className="flex w-full flex-col justify-center p-8 md:w-1/2 sm:p-12">
-          <HeadingAndText mainHeading="Login" link="/signup" pageName="Signup" disabled={loading} />
+          <HeadingAndText
+            mainHeading="Login"
+            prompt="Don't have an account yet?"
+            link="/signup"
+            pageName="Signup"
+            disabled={loading}
+          />
 
           <form onSubmit={sendLoginData} noValidate>
             <fieldset disabled={loading} className="min-w-0">
