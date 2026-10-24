@@ -96,3 +96,18 @@ describe("signing out", () => {
 function CurrentPath() {
   return <div data-testid="path">{useLocation().pathname}</div>;
 }
+
+test("the account menu shows the signed-in user's full name and email", () => {
+  localStorage.setItem(
+    "userData",
+    JSON.stringify({ id: "user-1", firstName: "ali", lastName: "khan", email: "ali.khan@example.com", token: "t" })
+  );
+  renderHeader("/");
+
+  fireEvent.click(screen.getByRole("button", { name: /open user menu/i }));
+
+  expect(screen.getByTestId("menu-user-name")).toHaveTextContent("ali khan");
+  expect(screen.getByTestId("menu-user-email")).toHaveTextContent("ali.khan@example.com");
+  // Hovering the avatar also shows who is signed in.
+  expect(screen.getByRole("button", { name: /open user menu/i })).toHaveAttribute("title", "ali khan");
+});

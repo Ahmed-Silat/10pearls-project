@@ -43,6 +43,8 @@ export default function Header() {
   const initials = `${currentUser?.firstName?.[0] || ""}${
     currentUser?.lastName?.[0] || ""
   }`.toUpperCase();
+  const fullName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(" ");
+  const email = currentUser?.email || "";
 
   const isProfilePage = location.pathname === "/user-profile";
 
@@ -187,6 +189,7 @@ export default function Header() {
                   type="button"
                   className="flex items-center gap-1.5 rounded-full p-1.5 text-sm text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   onClick={() => setProfileOpen((open) => !open)}
+                  title={fullName || undefined}
                 >
                   <span className="sr-only">Open user menu</span>
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-bold uppercase text-white ring-1 ring-white/30">
@@ -198,7 +201,27 @@ export default function Header() {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right animate-[fadeIn_0.15s_ease-out] rounded-xl bg-white py-1.5 shadow-xl ring-1 ring-slate-200">
+                  <div className="absolute right-0 z-10 mt-2 w-64 origin-top-right animate-[fadeIn_0.15s_ease-out] rounded-xl bg-white py-1.5 shadow-xl ring-1 ring-slate-200">
+                    {/* Who is signed in. Long names and emails are cut short; hovering shows them in full. */}
+                    <div className="mb-1.5 flex items-center gap-3 border-b border-slate-100 px-4 pb-3 pt-2">
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-cyan-600 text-sm font-bold uppercase text-white shadow-md shadow-sky-600/30">
+                        {initials || <UserIcon className="h-5 w-5" />}
+                      </span>
+                      <div className="min-w-0">
+                        <p
+                          className="truncate text-sm font-semibold capitalize text-slate-900"
+                          title={fullName}
+                          data-testid="menu-user-name"
+                        >
+                          {fullName || "Your account"}
+                        </p>
+                        {email && (
+                          <p className="truncate text-xs text-slate-500" title={email} data-testid="menu-user-email">
+                            {email}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                     <Link
                       to="/user-profile"
                       onClick={() => setProfileOpen(false)}
