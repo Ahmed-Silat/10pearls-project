@@ -2,8 +2,10 @@ package com._pearls.contactApp.Service;
 
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
+import com._pearls.contactApp.Dto.DuplicateMatchDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
+import com._pearls.contactApp.ExceptionHandling.DuplicateContactException;
 import com._pearls.contactApp.ExceptionHandling.DuplicateResourceException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
@@ -193,7 +195,7 @@ class ContactServiceTest {
         request.setPhone("0300-123 4567");
 
         when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
-        when(contactRepo.existsPhoneForUser(1L, "03001234567", 0L)).thenReturn(true);
+        when(contactRepo.findPhoneMatches(1L, "03001234567", 0L)).thenReturn(List.of(contact(5L, "Zed", owner)));
 
         assertThatThrownBy(() -> contactService.createContact(1L, request))
                 .isInstanceOf(DuplicateResourceException.class)
@@ -209,7 +211,7 @@ class ContactServiceTest {
         request.setEmail(" John@Example.com ");
 
         when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
-        when(contactRepo.existsByUser_IdAndEmailIgnoreCaseAndIdNot(1L, "john@example.com", 0L)).thenReturn(true);
+        when(contactRepo.findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(1L, "john@example.com", 0L)).thenReturn(List.of(contact(5L, "Zed", owner)));
 
         assertThatThrownBy(() -> contactService.createContact(1L, request))
                 .isInstanceOf(DuplicateResourceException.class)
@@ -228,7 +230,7 @@ class ContactServiceTest {
 
         contactService.createContact(1L, request);
 
-        verify(contactRepo, never()).existsByUser_IdAndEmailIgnoreCaseAndIdNot(any(), any(), any());
+        verify(contactRepo, never()).findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(any(), any(), any());
     }
 
     @Test
@@ -244,7 +246,7 @@ class ContactServiceTest {
         contactService.updateContact(10L, 1L, request);
 
         // The contact being edited is excluded from the check.
-        verify(contactRepo).existsPhoneForUser(1L, "0300", 10L);
+        verify(contactRepo).findPhoneMatches(1L, "0300", 10L);
         verify(contactRepo).save(existing);
     }
 
@@ -423,7 +425,7 @@ class ContactServiceTest {
         when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
         when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ContactDto restored = contactService.restoreContact(10L, 1L);
+        ContactDto restored = contactService.restoreContact(10L, 1L, false);
 
         assertThat(deleted.getDeletedAt()).isNull();
         assertThat(restored.getId()).isEqualTo(10L);
@@ -435,7 +437,7 @@ class ContactServiceTest {
         Contact deleted = deletedSecondsAgo(ContactService.RETENTION.toSeconds() + 1);
         when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
 
-        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L))
+        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L, false))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(contactRepo, never()).save(any());
     }
@@ -444,7 +446,7 @@ class ContactServiceTest {
     void restoreContact_notDeletedOrSomeoneElses_isNotFound() {
         when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L))
+        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L, false))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -452,9 +454,9 @@ class ContactServiceTest {
     void restoreContact_whenTheSamePhoneWasAddedSince_isRejected() {
         Contact deleted = deletedSecondsAgo(5);
         when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
-        when(contactRepo.existsPhoneForUser(1L, "0300", 10L)).thenReturn(true);
+        when(contactRepo.findPhoneMatches(1L, "0300", 10L)).thenReturn(List.of(contact(5L, "Zed", owner)));
 
-        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L))
+        assertThatThrownBy(() -> contactService.restoreContact(10L, 1L, false))
                 .isInstanceOf(DuplicateResourceException.class)
                 .hasMessage(ContactService.DUPLICATE_PHONE);
         assertThat(deleted.getDeletedAt()).isNotNull();
@@ -563,5 +565,85 @@ class ContactServiceTest {
         when(contactRepo.countDeletedByUserId(eq(1L), any(Instant.class))).thenReturn(3L);
 
         assertThat(contactService.getCounts(1L)).isEqualTo(new ContactCountsDto(24, 5, 3));
+    }
+
+    @Test
+    void createContact_duplicate_namesTheMatchingContacts() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("John");
+        request.setPhone("0300-1234567");
+        request.setEmail("john@example.com");
+        Contact ali = contact(5L, "Ali", owner);
+        Contact sara = contact(6L, "Sara", owner);
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.findPhoneMatches(1L, "03001234567", 0L)).thenReturn(List.of(ali));
+        when(contactRepo.findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(1L, "john@example.com", 0L))
+                .thenReturn(List.of(sara));
+
+        assertThatThrownBy(() -> contactService.createContact(1L, request))
+                .isInstanceOf(DuplicateContactException.class)
+                .hasMessage(ContactService.DUPLICATE_PHONE)
+                .satisfies(ex -> assertThat(((DuplicateContactException) ex).getDuplicates()).containsExactly(
+                        new DuplicateMatchDto(5L, "Ali", "Doe", "phone"),
+                        new DuplicateMatchDto(6L, "Sara", "Doe", "email")));
+        verify(contactRepo, never()).save(any());
+    }
+
+    @Test
+    void createContact_saveAnyway_skipsTheDuplicateCheck() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("John");
+        request.setPhone("0300-1234567");
+        request.setAllowDuplicate(true);
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        contactService.createContact(1L, request);
+
+        verify(contactRepo, never()).findPhoneMatches(any(), any(), org.mockito.ArgumentMatchers.anyLong());
+        verify(contactRepo).save(any(Contact.class));
+    }
+
+    @Test
+    void updateContact_saveAnyway_skipsTheDuplicateCheck() {
+        Contact existing = contact(10L, "Alice", owner);
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Alice");
+        request.setPhone("0300");
+        request.setAllowDuplicate(true);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        contactService.updateContact(10L, 1L, request);
+
+        verify(contactRepo, never()).findPhoneMatches(any(), any(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    void restoreContact_restoreAnyway_skipsTheDuplicateCheck() {
+        Contact deleted = deletedSecondsAgo(5);
+        when(contactRepo.findDeletedByIdAndUserId(10L, 1L)).thenReturn(Optional.of(deleted));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        contactService.restoreContact(10L, 1L, true);
+
+        assertThat(deleted.getDeletedAt()).isNull();
+        verify(contactRepo, never()).findPhoneMatches(any(), any(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    void findDuplicates_noPhoneOrEmail_findsNothing() {
+        assertThat(contactService.findDuplicates(1L, 0L, "  ", "")).isEmpty();
+        verify(contactRepo, never()).findPhoneMatches(any(), any(), org.mockito.ArgumentMatchers.anyLong());
+        verify(contactRepo, never()).findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(any(), any(), any());
+    }
+
+    @Test
+    void findDuplicates_comparesEmailsIgnoringCaseAndSpaces() {
+        when(contactRepo.findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(1L, "ali@example.com", 7L))
+                .thenReturn(List.of(contact(5L, "Ali", owner)));
+
+        assertThat(contactService.findDuplicates(1L, 7L, null, "  Ali@Example.COM "))
+                .containsExactly(new DuplicateMatchDto(5L, "Ali", "Doe", "email"));
     }
 }

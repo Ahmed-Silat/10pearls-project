@@ -4,6 +4,7 @@ import com._pearls.contactApp.Config.AuthUser;
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
+import com._pearls.contactApp.Dto.DuplicateMatchDto;
 import com._pearls.contactApp.Dto.FavoriteRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/contact")
@@ -92,8 +95,22 @@ public class ContactController {
 
     /** Moves a contact out of Recently deleted, back into the contact list. Returns the restored contact. */
     @PostMapping("/{id}/restore")
-    public ContactDto restoreContact(@PathVariable Long id, @AuthenticationPrincipal AuthUser principal) {
-        return contactService.restoreContact(id, principal.getId());
+    public ContactDto restoreContact(@PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean allowDuplicate,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.restoreContact(id, principal.getId(), allowDuplicate);
+    }
+
+    /**
+     * The user's contacts that already have this phone number or email, for warning while the Add/Edit form is
+     * being filled in. {@code excludeId} is the contact being edited (omit it for a new contact).
+     */
+    @GetMapping("/duplicates")
+    public List<DuplicateMatchDto> findDuplicates(@RequestParam(required = false) String phone,
+            @RequestParam(required = false) String email,
+            @RequestParam(defaultValue = "0") long excludeId,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.findDuplicates(principal.getId(), excludeId, phone, email);
     }
 
     @DeleteMapping("/{id}")

@@ -28,4 +28,7 @@ public class ContactRequest {
 
     @Size(max = 255, message = "address must be at most 255 characters")
     private String address;
+
+    /** Save even if another contact has the same phone or email (the user chose "Save anyway"). */
+    private boolean allowDuplicate;
 }

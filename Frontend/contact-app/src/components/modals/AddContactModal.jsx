@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import Modal from "../ui/Modal";
-import { createNewContact } from "../../service/ContactService";
+import { createNewContact, getDuplicates } from "../../service/ContactService";
+import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
+import DuplicateNotice from "../ui/DuplicateNotice";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { PlusIcon } from "../icons/Icons";
 import { createContactSchema } from "../../validation/createContactSchema";
@@ -22,20 +24,25 @@ export default function AddContactModal(props) {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Warning shown while typing, and the server's duplicate list once Save was pressed (then "Save anyway?").
+  const { matches: possibleDuplicates, check: checkForDuplicates } = useDuplicateCheck();
+  const [confirmDuplicates, setConfirmDuplicates] = useState(null);
   const userId = props.userId;
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setConfirmDuplicates(null);
   };
+
+  const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
   // The modal cannot be closed while a save is in progress.
   const close = () => {
     if (!loading) props.onClose();
   };
 
-  const addNewContact = async (event) => {
-    event.preventDefault();
+  const addNewContact = async ({ allowDuplicate = false } = {}) => {
     const validation = validateWith(createContactSchema, form);
     if (!validation.success) {
       setErrors(validation.errors);
@@ -50,21 +57,29 @@ export default function AddContactModal(props) {
         validation.data.email,
         validation.data.address,
         validation.data.phoneNo,
-        userId
+        userId,
+        { allowDuplicate }
       );
       toast.success("Contact added");
       props.fetchContacts();
       props.onClose();
     } catch (error) {
-      setServerError(getApiErrorMessage(error, "Failed to add contact."));
+      const duplicates = getDuplicates(error);
+      if (duplicates) setConfirmDuplicates(duplicates);
+      else setServerError(getApiErrorMessage(error, "Failed to add contact."));
     } finally {
       setLoading(false);
     }
   };
 
+  const submit = (event) => {
+    event.preventDefault();
+    addNewContact();
+  };
+
   return (
     <Modal onClose={close} titleId="add-contact-title" panelClassName="sm:max-w-xl">
-      <form onSubmit={addNewContact} noValidate>
+      <form onSubmit={submit} noValidate>
         <fieldset disabled={loading} className="min-w-0">
           <div className="px-6 pt-6">
             <div className="flex items-center gap-4">
@@ -114,6 +129,7 @@ export default function AddContactModal(props) {
                 placeholder="Enter email"
                 value={form.email}
                 onChange={handleChange("email")}
+                onBlur={checkPhoneAndEmail}
                 error={errors.email}
               />
 
@@ -125,6 +141,7 @@ export default function AddContactModal(props) {
                 placeholder="Enter phone no"
                 value={form.phoneNo}
                 onChange={handleChange("phoneNo")}
+                onBlur={checkPhoneAndEmail}
                 error={errors.phoneNo}
               />
 
@@ -141,26 +158,50 @@ export default function AddContactModal(props) {
                 className="sm:col-span-2"
               />
             </div>
+            <DuplicateNotice
+              matches={confirmDuplicates ?? possibleDuplicates}
+              confirm={Boolean(confirmDuplicates)}
+            />
             {serverError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
             )}
           </div>
 
           <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-            <Button
-              type="submit"
-              name={loading ? "Adding..." : "Add Contact"}
-              loading={loading}
-              className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
-            />
-            <button
-              type="button"
-              data-autofocus
-              onClick={close}
-              className="mt-0 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              Cancel
-            </button>
+            {confirmDuplicates ? (
+              <>
+                <Button
+                  name={loading ? "Adding..." : "Save anyway"}
+                  loading={loading}
+                  onClick={() => addNewContact({ allowDuplicate: true })}
+                  className="w-full bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 sm:w-auto"
+                />
+                <button
+                  type="button"
+                  onClick={() => setConfirmDuplicates(null)}
+                  className="mt-0 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  Go back
+                </button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="submit"
+                  name={loading ? "Adding..." : "Add Contact"}
+                  loading={loading}
+                  className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
+                />
+                <button
+                  type="button"
+                  data-autofocus
+                  onClick={close}
+                  className="mt-0 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </fieldset>
       </form>

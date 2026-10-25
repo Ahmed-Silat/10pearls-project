@@ -68,6 +68,16 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    /** Like any 409, plus the matching contacts under "duplicates". */
+    @ExceptionHandler(DuplicateContactException.class)
+    public ResponseEntity<Object> handleDuplicateContact(DuplicateContactException ex) {
+        ResponseEntity<Object> response = error(HttpStatus.CONFLICT, ex.getMessage());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        body.put("duplicates", ex.getDuplicates());
+        return response;
+    }
+
     @ExceptionHandler({AccessDeniedException.class})
     public ResponseEntity<Object> handleAccessDenied(AccessDeniedException ex) {
         return error(HttpStatus.FORBIDDEN, "Access denied");

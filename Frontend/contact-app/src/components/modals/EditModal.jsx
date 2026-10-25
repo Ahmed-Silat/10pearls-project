@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
-import { updateContact } from "../../service/ContactService";
+import { getDuplicates, updateContact } from "../../service/ContactService";
+import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
+import DuplicateNotice from "../ui/DuplicateNotice";
 import { PencilIcon } from "../icons/Icons";
 import { createContactSchema } from "../../validation/createContactSchema";
 import { validateWith } from "../../validation/common";
@@ -24,19 +26,27 @@ export default function EditModal(props) {
   const [loading, setLoading] = useState(false);
   // The contact is still being fetched when the modal first opens.
   const isLoadingContact = !props.contactData;
+  // Warning shown while typing, and the server's duplicate list once Update was pressed (then "Save anyway?").
+  // The contact being edited is left out, so it never clashes with itself.
+  const { matches: possibleDuplicates, check: checkForDuplicates } = useDuplicateCheck(
+    props.contactData?.id
+  );
+  const [confirmDuplicates, setConfirmDuplicates] = useState(null);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setConfirmDuplicates(null);
   };
+
+  const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
   // The modal cannot be closed while a save is in progress.
   const close = () => {
     if (!loading) props.onClose();
   };
 
-  const updateCurrentContact = async (event) => {
-    event.preventDefault();
+  const updateCurrentContact = async ({ allowDuplicate = false } = {}) => {
     const validation = validateWith(createContactSchema, form);
     if (!validation.success) {
       setErrors(validation.errors);
@@ -51,16 +61,24 @@ export default function EditModal(props) {
         validation.data.lastName,
         validation.data.email,
         validation.data.phoneNo,
-        validation.data.address
+        validation.data.address,
+        { allowDuplicate }
       );
       toast.success("Contact updated");
       props.getContacts();
       props.onClose();
     } catch (error) {
-      setServerError(getApiErrorMessage(error, "Failed to update contact."));
+      const duplicates = getDuplicates(error);
+      if (duplicates) setConfirmDuplicates(duplicates);
+      else setServerError(getApiErrorMessage(error, "Failed to update contact."));
     } finally {
       setLoading(false);
     }
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    updateCurrentContact();
   };
 
   useEffect(() => {
@@ -78,7 +96,7 @@ export default function EditModal(props) {
 
   return (
     <Modal onClose={close} titleId="edit-contact-title" panelClassName="sm:max-w-xl">
-      <form onSubmit={updateCurrentContact} noValidate>
+      <form onSubmit={submit} noValidate>
         <fieldset disabled={loading} className="min-w-0">
           <div className="px-6 pt-6">
             <div className="flex items-center gap-4">
@@ -138,6 +156,7 @@ export default function EditModal(props) {
                   placeholder="Enter email"
                   value={form.email}
                   onChange={handleChange("email")}
+                  onBlur={checkPhoneAndEmail}
                   error={errors.email}
                 />
 
@@ -149,6 +168,7 @@ export default function EditModal(props) {
                   placeholder="Enter phone no"
                   value={form.phoneNo}
                   onChange={handleChange("phoneNo")}
+                  onBlur={checkPhoneAndEmail}
                   error={errors.phoneNo}
                 />
 
@@ -166,27 +186,53 @@ export default function EditModal(props) {
                 />
               </div>
             )}
+            {!isLoadingContact && (
+              <DuplicateNotice
+                matches={confirmDuplicates ?? possibleDuplicates}
+                confirm={Boolean(confirmDuplicates)}
+              />
+            )}
             {serverError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
             )}
           </div>
 
           <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-            <Button
-              type="submit"
-              name={loading ? "Updating..." : "Update"}
-              loading={loading}
-              disabled={isLoadingContact}
-              className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
-            />
-            <button
-              type="button"
-              data-autofocus
-              onClick={close}
-              className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              Cancel
-            </button>
+            {confirmDuplicates ? (
+              <>
+                <Button
+                  name={loading ? "Updating..." : "Save anyway"}
+                  loading={loading}
+                  onClick={() => updateCurrentContact({ allowDuplicate: true })}
+                  className="w-full bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 sm:w-auto"
+                />
+                <button
+                  type="button"
+                  onClick={() => setConfirmDuplicates(null)}
+                  className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  Go back
+                </button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="submit"
+                  name={loading ? "Updating..." : "Update"}
+                  loading={loading}
+                  disabled={isLoadingContact}
+                  className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
+                />
+                <button
+                  type="button"
+                  data-autofocus
+                  onClick={close}
+                  className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </fieldset>
       </form>

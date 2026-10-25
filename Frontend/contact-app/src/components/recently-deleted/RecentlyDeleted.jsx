@@ -7,6 +7,7 @@ import Spinner from "../ui/Spinner";
 import PermanentDeleteModal from "../modals/PermanentDeleteModal";
 import {
   deletePermanently,
+  getDuplicates,
   getRecentlyDeleted,
   restoreContact,
 } from "../../service/ContactService";
@@ -60,14 +61,21 @@ export default function RecentlyDeleted() {
     load();
   }, [load]);
 
-  const restore = async (contact) => {
+  const restore = async (contact, { allowDuplicate = false } = {}) => {
     setRestoringId(contact.id);
     try {
-      await restoreContact(contact.id);
+      await restoreContact(contact.id, { allowDuplicate });
       toast.success("Contact restored");
       await load();
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Couldn't restore the contact."));
+      // A contact with the same phone or email was added since the delete: let the user decide.
+      const duplicates = getDuplicates(error);
+      toast.error(getApiErrorMessage(error, "Couldn't restore the contact."), {
+        ...(duplicates && {
+          action: { label: "Restore anyway", onClick: () => restore(contact, { allowDuplicate: true }) },
+          duration: 8000,
+        }),
+      });
     } finally {
       setRestoringId(null);
     }

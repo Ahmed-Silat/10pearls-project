@@ -3,6 +3,8 @@ package com._pearls.contactApp.Controller;
 import com._pearls.contactApp.Config.AuthUser;
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
+import com._pearls.contactApp.Dto.DuplicateMatchDto;
+import com._pearls.contactApp.ExceptionHandling.DuplicateContactException;
 import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.ExceptionHandling.GlobalExceptionHandler;
 import com._pearls.contactApp.Model.User;
@@ -201,11 +203,61 @@ class ContactControllerTest {
 
     @Test
     void restoreContact_returnsTheRestoredContact() throws Exception {
-        when(contactService.restoreContact(10L, 1L)).thenReturn(sampleContact(10L));
+        when(contactService.restoreContact(10L, 1L, false)).thenReturn(sampleContact(10L));
 
         mockMvc.perform(asUser(post("/contact/{id}/restore", 10L), 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", org.hamcrest.Matchers.is(10)));
+    }
+
+    @Test
+    void restoreContact_canRestoreAnyway() throws Exception {
+        when(contactService.restoreContact(10L, 1L, true)).thenReturn(sampleContact(10L));
+
+        mockMvc.perform(asUser(post("/contact/{id}/restore", 10L).param("allowDuplicate", "true"), 1L))
+                .andExpect(status().isOk());
+
+        verify(contactService).restoreContact(10L, 1L, true);
+    }
+
+    @Test
+    void findDuplicates_returnsTheMatchingContacts() throws Exception {
+        when(contactService.findDuplicates(1L, 7L, "0300 1234567", null))
+                .thenReturn(List.of(new DuplicateMatchDto(5L, "ali", "khan", "phone")));
+
+        mockMvc.perform(asUser(get("/contact/duplicates").param("phone", "0300 1234567").param("excludeId", "7"), 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id", org.hamcrest.Matchers.is(5)))
+                .andExpect(jsonPath("$[0].firstName", org.hamcrest.Matchers.is("ali")))
+                .andExpect(jsonPath("$[0].field", org.hamcrest.Matchers.is("phone")));
+    }
+
+    @Test
+    void duplicateOnSave_is409WithTheMatchingContacts() throws Exception {
+        when(contactService.createContact(eq(1L), any())).thenThrow(new DuplicateContactException(
+                "You already have a contact with this phone number",
+                List.of(new DuplicateMatchDto(5L, "ali", "khan", "phone"))));
+
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Alice\",\"phone\":\"0300\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.is("You already have a contact with this phone number")))
+                .andExpect(jsonPath("$.duplicates[0].firstName", org.hamcrest.Matchers.is("ali")))
+                .andExpect(jsonPath("$.duplicates[0].field", org.hamcrest.Matchers.is("phone")));
+    }
+
+    @Test
+    void allowDuplicate_isReadFromTheRequestBody() throws Exception {
+        when(contactService.createContact(eq(1L), any())).thenReturn(sampleContact(10L));
+
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Alice\",\"phone\":\"0300\",\"allowDuplicate\":true}"))
+                .andExpect(status().isCreated());
+
+        verify(contactService).createContact(eq(1L), org.mockito.ArgumentMatchers.argThat(
+                com._pearls.contactApp.Dto.ContactRequest::isAllowDuplicate));
     }
 
     @Test
