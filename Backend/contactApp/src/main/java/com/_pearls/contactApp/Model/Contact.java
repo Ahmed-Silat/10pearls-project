@@ -65,6 +65,10 @@ public class Contact {
     @Column(name = "favorite", nullable = false)
     private boolean favorite;
 
+    /** Someone to reach in an emergency; these contacts are listed on the Emergency page. */
+    @Column(name = "emergency", nullable = false)
+    private boolean emergency;
+
     /** When the user deleted it; null while the contact is live. */
     @Column(name = "deleted_at")
     private Instant deletedAt;

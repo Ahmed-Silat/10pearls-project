@@ -28,13 +28,15 @@ const renderAt = (path) =>
 const link = (name) => screen.getByRole("link", { name: new RegExp(`^${name}`) });
 
 test("links to every section with its count", async () => {
-  getContactCounts.mockResolvedValue({ all: 24, favorites: 5, recentlyDeleted: 3 });
+  getContactCounts.mockResolvedValue({ all: 24, favorites: 5, emergency: 2, recentlyDeleted: 3 });
   renderAt("/");
 
   await waitFor(() => expect(within(link("All contacts")).getByText("24")).toBeInTheDocument());
   expect(link("All contacts")).toHaveAttribute("href", "/");
   expect(within(link("Favorites")).getByText("5")).toBeInTheDocument();
   expect(link("Favorites")).toHaveAttribute("href", "/favorites");
+  expect(within(link("Emergency")).getByText("2")).toBeInTheDocument();
+  expect(link("Emergency")).toHaveAttribute("href", "/emergency");
   expect(within(link("Recently deleted")).getByText("3")).toBeInTheDocument();
   expect(link("Recently deleted")).toHaveAttribute("href", "/recently-deleted");
 });

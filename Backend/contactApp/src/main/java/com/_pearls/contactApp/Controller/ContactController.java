@@ -5,6 +5,7 @@ import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.DuplicateMatchDto;
+import com._pearls.contactApp.Dto.EmergencyRequest;
 import com._pearls.contactApp.Dto.FavoriteRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
 import com._pearls.contactApp.ExceptionHandling.ForbiddenException;
@@ -46,7 +47,7 @@ public class ContactController {
         return contactService.getContactsByUserId(id, search, sortBy, page, size, filter);
     }
 
-    /** How many contacts are in each sidebar section (all, favorites, recently deleted). */
+    /** How many contacts are in each sidebar section (all, favorites, emergency, recently deleted). */
     @GetMapping("/counts")
     public ContactCountsDto getCounts(@AuthenticationPrincipal AuthUser principal) {
         return contactService.getCounts(principal.getId());
@@ -77,6 +78,14 @@ public class ContactController {
             @Valid @RequestBody FavoriteRequest request,
             @AuthenticationPrincipal AuthUser principal) {
         return contactService.setFavorite(id, principal.getId(), request.getFavorite());
+    }
+
+    /** Marks or unmarks an emergency contact: {@code {"emergency": true}}. Returns the updated contact. */
+    @PatchMapping("/{id}/emergency")
+    public ContactDto setEmergency(@PathVariable Long id,
+            @Valid @RequestBody EmergencyRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.setEmergency(id, principal.getId(), request.getEmergency());
     }
 
     /** The signed-in user's Recently deleted contacts, newest first, 20 per page. */

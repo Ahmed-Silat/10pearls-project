@@ -71,7 +71,7 @@ class ContactServiceTest {
     void getContactsByUserId_mapsPageMetadataCorrectly() {
         List<Contact> content = List.of(contact(10L, "Alice", owner), contact(11L, "Bob", owner));
         Page<Contact> page = new PageImpl<>(content, PageRequest.of(0, 2), 5);
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class))).thenReturn(page);
 
         PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, "A-Z", 1, 2, "all");
 
@@ -132,58 +132,58 @@ class ContactServiceTest {
     @Test
     void getContactsByUserId_usesAscendingSortByDefault() {
         Page<Contact> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class))).thenReturn(page);
 
         contactService.getContactsByUserId(1L, null, null, 1, 10, "all");
 
-        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 Sort.by(Sort.Direction.ASC, "firstName").and(Sort.by(Sort.Direction.ASC, "id")).equals(p.getSort())));
     }
 
     @Test
     void getContactsByUserId_doesNotPinFavoritesToTheTop() {
         // Favorites have their own page, so in All contacts a starred "Zara" stays after "Ali".
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         contactService.getContactsByUserId(1L, null, null, 1, 10, "all");
 
-        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 p.getSort().getOrderFor("favorite") == null));
     }
 
     @Test
     void getContactsByUserId_zToA_stillBreaksTiesById() {
         // Without a tiebreaker, two "Ali"s can swap places between page loads and one gets shown twice.
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         contactService.getContactsByUserId(1L, null, "Z-A", 1, 10, "all");
 
-        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 Sort.by(Sort.Direction.DESC, "firstName").and(Sort.by(Sort.Direction.ASC, "id")).equals(p.getSort())));
     }
 
     @Test
     void getContactsByUserId_capsHugePageSizes() {
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
 
         PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, 1, 10_000_000, "all");
 
-        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 p.getPageSize() == ContactService.MAX_PAGE_SIZE));
         assertThat(result.getContactsPerPage()).isEqualTo(ContactService.MAX_PAGE_SIZE);
     }
 
     @Test
     void getContactsByUserId_pageZeroOrNegative_isTreatedAsFirstPage() {
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         PaginationDto<ContactDto> result = contactService.getContactsByUserId(1L, null, null, -3, 0, "all");
 
-        verify(contactRepo).findForUser(eq(1L), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(false), org.mockito.ArgumentMatchers.argThat(p ->
                 p.getPageNumber() == 0 && p.getPageSize() == 1));
         assertThat(result.getCurrentPage()).isEqualTo(1);
     }
@@ -254,12 +254,12 @@ class ContactServiceTest {
     void getContactsByUserId_searchEscapesLikeWildcards() {
         Page<Contact> page = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
         // Input "100%" must be escaped to the SQL pattern "100\%%" (literal %, then wildcard).
-        when(contactRepo.searchByUserId(eq(1L), eq("100\\%%"), eq(false), any(Pageable.class))).thenReturn(page);
+        when(contactRepo.searchByUserId(eq(1L), eq("100\\%%"), eq(false), eq(false), any(Pageable.class))).thenReturn(page);
 
         contactService.getContactsByUserId(1L, "100%", null, 1, 10, "all");
 
-        verify(contactRepo).searchByUserId(eq(1L), eq("100\\%%"), eq(false), any(Pageable.class));
-        verify(contactRepo, never()).findForUser(any(), org.mockito.ArgumentMatchers.anyBoolean(), any());
+        verify(contactRepo).searchByUserId(eq(1L), eq("100\\%%"), eq(false), eq(false), any(Pageable.class));
+        verify(contactRepo, never()).findForUser(any(), org.mockito.ArgumentMatchers.anyBoolean(), org.mockito.ArgumentMatchers.anyBoolean(), any());
     }
 
     @Test
@@ -530,41 +530,42 @@ class ContactServiceTest {
 
     @Test
     void favoritesFilter_listsOnlyStarredContacts() {
-        when(contactRepo.findForUser(eq(1L), eq(true), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(true), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         contactService.getContactsByUserId(1L, null, null, 1, 10, "favorites");
 
-        verify(contactRepo).findForUser(eq(1L), eq(true), any(Pageable.class));
+        verify(contactRepo).findForUser(eq(1L), eq(true), eq(false), any(Pageable.class));
     }
 
     @Test
     void favoritesFilter_alsoAppliesToSearch() {
-        when(contactRepo.searchByUserId(eq(1L), eq("al%"), eq(true), any(Pageable.class)))
+        when(contactRepo.searchByUserId(eq(1L), eq("al%"), eq(true), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         contactService.getContactsByUserId(1L, "al", null, 1, 10, "favorites");
 
-        verify(contactRepo).searchByUserId(eq(1L), eq("al%"), eq(true), any(Pageable.class));
+        verify(contactRepo).searchByUserId(eq(1L), eq("al%"), eq(true), eq(false), any(Pageable.class));
     }
 
     @Test
     void unknownFilter_listsEveryContact() {
-        when(contactRepo.findForUser(eq(1L), eq(false), any(Pageable.class)))
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         contactService.getContactsByUserId(1L, null, null, 1, 10, "something-else");
 
-        verify(contactRepo).findForUser(eq(1L), eq(false), any(Pageable.class));
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(false), any(Pageable.class));
     }
 
     @Test
     void getCounts_returnsTheNumberInEachSidebarSection() {
         when(contactRepo.countByUser_Id(1L)).thenReturn(24L);
         when(contactRepo.countByUser_IdAndFavoriteTrue(1L)).thenReturn(5L);
+        when(contactRepo.countByUser_IdAndEmergencyTrue(1L)).thenReturn(2L);
         when(contactRepo.countDeletedByUserId(eq(1L), any(Instant.class))).thenReturn(3L);
 
-        assertThat(contactService.getCounts(1L)).isEqualTo(new ContactCountsDto(24, 5, 3));
+        assertThat(contactService.getCounts(1L)).isEqualTo(new ContactCountsDto(24, 5, 2, 3));
     }
 
     @Test
@@ -645,5 +646,107 @@ class ContactServiceTest {
 
         assertThat(contactService.findDuplicates(1L, 7L, null, "  Ali@Example.COM "))
                 .containsExactly(new DuplicateMatchDto(5L, "Ali", "Doe", "email"));
+    }
+
+    @Test
+    void emergencyFilter_listsOnlyEmergencyContacts() {
+        when(contactRepo.findForUser(eq(1L), eq(false), eq(true), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, null, null, 1, 10, "emergency");
+
+        verify(contactRepo).findForUser(eq(1L), eq(false), eq(true), any(Pageable.class));
+    }
+
+    @Test
+    void emergencyFilter_alsoAppliesToSearch() {
+        when(contactRepo.searchByUserId(eq(1L), eq("al%"), eq(false), eq(true), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        contactService.getContactsByUserId(1L, "al", null, 1, 10, "emergency");
+
+        verify(contactRepo).searchByUserId(eq(1L), eq("al%"), eq(false), eq(true), any(Pageable.class));
+    }
+
+    @Test
+    void setEmergency_marksOwnContact() {
+        Contact existing = contact(10L, "Alice", owner);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ContactDto result = contactService.setEmergency(10L, 1L, true);
+
+        assertThat(existing.isEmergency()).isTrue();
+        assertThat(result.isEmergency()).isTrue();
+    }
+
+    @Test
+    void setEmergency_canUnmark() {
+        Contact existing = contact(10L, "Alice", owner);
+        existing.setEmergency(true);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.setEmergency(10L, 1L, false).isEmergency()).isFalse();
+    }
+
+    @Test
+    void setEmergency_otherUsersContact_looksLikeItDoesNotExist() {
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(contact(10L, "Alice", User.builder().id(2L).build())));
+
+        assertThatThrownBy(() -> contactService.setEmergency(10L, 1L, true))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(contactRepo, never()).save(any());
+    }
+
+    @Test
+    void createContact_markedAsEmergency_isSavedAsOne() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Mom");
+        request.setPhone("0300");
+        request.setEmergency(true);
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.createContact(1L, request).isEmergency()).isTrue();
+    }
+
+    @Test
+    void createContact_withoutEmergency_isNotOne() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Ali");
+        request.setPhone("0300");
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.createContact(1L, request).isEmergency()).isFalse();
+    }
+
+    @Test
+    void updateContact_canUnmarkEmergency() {
+        Contact existing = contact(10L, "Alice", owner);
+        existing.setEmergency(true);
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Alice");
+        request.setPhone("0300");
+        request.setEmergency(false);
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.updateContact(10L, 1L, request).isEmergency()).isFalse();
+    }
+
+    @Test
+    void updateContact_withoutEmergency_keepsTheCurrentValue() {
+        // An edit from a client that doesn't send the field must not unmark the contact.
+        Contact existing = contact(10L, "Alice", owner);
+        existing.setEmergency(true);
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("Alicia");
+        request.setPhone("0300");
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(contactService.updateContact(10L, 1L, request).isEmergency()).isTrue();
     }
 }

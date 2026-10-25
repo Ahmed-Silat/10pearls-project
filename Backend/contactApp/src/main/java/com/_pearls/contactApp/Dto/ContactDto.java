@@ -14,6 +14,7 @@ public class ContactDto {
     private String phone;
     private String address;
     private boolean favorite;
+    private boolean emergency;
 
     /** Only for contacts in Recently deleted: when it was deleted, and when it will be deleted for good. */
     private String deletedAt;

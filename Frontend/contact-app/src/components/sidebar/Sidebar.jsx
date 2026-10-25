@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { StarIcon, TrashIcon, UsersIcon } from "../icons/Icons";
+import { EmergencyIcon, StarIcon, TrashIcon, UsersIcon } from "../icons/Icons";
 import { CONTACTS_CHANGED_EVENT, getContactCounts } from "../../service/ContactService";
 
 /**
  * The sections of the app. `count` is the key in the counts response. Recently deleted sits apart at the bottom.
- * To add a section (e.g. Emergency): add an entry here, a route in App.jsx, and a filter in the backend.
+ * To add a section: add an entry here, a route in App.jsx, and a filter in the backend.
  */
 export const NAV_SECTIONS = [
   { to: "/", label: "All contacts", Icon: UsersIcon, count: "all" },
   { to: "/favorites", label: "Favorites", Icon: StarIcon, count: "favorites" },
+  { to: "/emergency", label: "Emergency", Icon: EmergencyIcon, count: "emergency" },
 ];
 export const RECENTLY_DELETED_SECTION = {
   to: "/recently-deleted",
@@ -18,7 +19,7 @@ export const RECENTLY_DELETED_SECTION = {
   count: "recentlyDeleted",
 };
 
-/** Loads the sidebar counts, and reloads them when the page changes or contacts are added, deleted or starred. */
+/** Loads the sidebar counts, and reloads them when the page changes or contacts are added, edited, deleted or starred. */
 function useContactCounts() {
   const location = useLocation();
   const [counts, setCounts] = useState(null);

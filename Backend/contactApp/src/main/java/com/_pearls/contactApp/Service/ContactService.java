@@ -42,6 +42,7 @@ public class ContactService {
 
     static final int MAX_PAGE_SIZE = 100;
     static final String FILTER_FAVORITES = "favorites";
+    static final String FILTER_EMERGENCY = "emergency";
     static final String DUPLICATE_PHONE = "You already have a contact with this phone number";
     static final String DUPLICATE_EMAIL = "You already have a contact with this email";
 
@@ -56,12 +57,14 @@ public class ContactService {
 
     /**
      * One page of the user's contacts. {@code filter} picks the sidebar section: {@value #FILTER_FAVORITES} for
-     * starred contacts only; anything else (normally "all") for every contact.
+     * starred contacts only, {@value #FILTER_EMERGENCY} for emergency contacts only, anything else (normally "all")
+     * for every contact.
      */
     @Transactional(readOnly = true)
     public PaginationDto<ContactDto> getContactsByUserId(Long userId, String search, String sortBy, int page, int size,
                                                          String filter) {
         boolean favoritesOnly = FILTER_FAVORITES.equalsIgnoreCase(filter);
+        boolean emergencyOnly = FILTER_EMERGENCY.equalsIgnoreCase(filter);
         // Out-of-range values are clamped rather than rejected: a huge size would load every contact at once,
         // and page 0 or below would otherwise make PageRequest throw.
         page = Math.max(page, 1);
@@ -84,9 +87,9 @@ public class ContactService {
                     .replace("\\", "\\\\")
                     .replace("%", "\\%")
                     .replace("_", "\\_");
-            result = contactRepo.searchByUserId(userId, escaped + "%", favoritesOnly, pageable);
+            result = contactRepo.searchByUserId(userId, escaped + "%", favoritesOnly, emergencyOnly, pageable);
         } else {
-            result = contactRepo.findForUser(userId, favoritesOnly, pageable);
+            result = contactRepo.findForUser(userId, favoritesOnly, emergencyOnly, pageable);
         }
 
         PaginationDto<ContactDto> dto = new PaginationDto<>();
@@ -104,6 +107,7 @@ public class ContactService {
         return new ContactCountsDto(
                 contactRepo.countByUser_Id(userId),
                 contactRepo.countByUser_IdAndFavoriteTrue(userId),
+                contactRepo.countByUser_IdAndEmergencyTrue(userId),
                 contactRepo.countDeletedByUserId(userId, retentionCutoff()));
     }
 
@@ -123,6 +127,7 @@ public class ContactService {
                 .email(normalize(request.getEmail()))
                 .phone(trim(request.getPhone()))
                 .address(trim(request.getAddress()))
+                .emergency(Boolean.TRUE.equals(request.getEmergency()))
                 .user(user)
                 .build();
         return toDto(contactRepo.save(contact));
@@ -137,6 +142,10 @@ public class ContactService {
         contact.setEmail(normalize(request.getEmail()));
         contact.setPhone(trim(request.getPhone()));
         contact.setAddress(trim(request.getAddress()));
+        // Left out of the request: keep the current value.
+        if (request.getEmergency() != null) {
+            contact.setEmergency(request.getEmergency());
+        }
         return toDto(contactRepo.save(contact));
     }
 
@@ -145,6 +154,14 @@ public class ContactService {
     public ContactDto setFavorite(Long id, Long userId, boolean favorite) {
         Contact contact = findOwnedContact(id, userId);
         contact.setFavorite(favorite);
+        return toDto(contactRepo.save(contact));
+    }
+
+    /** Marks or unmarks one of the user's contacts as an emergency contact. */
+    @Transactional
+    public ContactDto setEmergency(Long id, Long userId, boolean emergency) {
+        Contact contact = findOwnedContact(id, userId);
+        contact.setEmergency(emergency);
         return toDto(contactRepo.save(contact));
     }
 
@@ -276,6 +293,7 @@ public class ContactService {
         dto.setPhone(contact.getPhone());
         dto.setAddress(contact.getAddress());
         dto.setFavorite(contact.isFavorite());
+        dto.setEmergency(contact.isEmergency());
         if (contact.getDeletedAt() != null) {
             dto.setDeletedAt(contact.getDeletedAt().toString());
             dto.setDeletesPermanentlyAt(contact.getDeletedAt().plus(RETENTION).toString());

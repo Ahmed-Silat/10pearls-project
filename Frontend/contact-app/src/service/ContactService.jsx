@@ -4,7 +4,7 @@ import api, { getApiErrorMessage } from "./Constants";
 export const CONTACTS_CHANGED_EVENT = "contactsChanged";
 const notifyContactsChanged = () => window.dispatchEvent(new Event(CONTACTS_CHANGED_EVENT));
 
-/** One page of contacts. `filter` is the sidebar section: "all" (default) or "favorites". */
+/** One page of contacts. `filter` is the sidebar section: "all" (default), "favorites" or "emergency". */
 export const getContactsByUserId = async (userId, sortBy, search, page, size, filter = "all") => {
   const { data } = await api.get(`/contact/user/${userId}`, {
     params: { sortBy, search, page, size, filter },
@@ -12,7 +12,7 @@ export const getContactsByUserId = async (userId, sortBy, search, page, size, fi
   return data;
 };
 
-/** `{ all, favorites, recentlyDeleted }`: the numbers shown in the sidebar. */
+/** `{ all, favorites, emergency, recentlyDeleted }`: the numbers shown in the sidebar. */
 export const getContactCounts = async () => {
   const { data } = await api.get(`/contact/counts`);
   return data;
@@ -35,7 +35,10 @@ export const checkDuplicates = async ({ phone, email, excludeId }) => {
   return data;
 };
 
-/** `allowDuplicate` saves even if another contact has the same phone or email ("Save anyway"). */
+/**
+ * `emergency` marks the new contact as an emergency contact. `allowDuplicate` saves even if another contact has
+ * the same phone or email ("Save anyway").
+ */
 export const createNewContact = async (
   firstName,
   lastName,
@@ -43,7 +46,7 @@ export const createNewContact = async (
   address,
   phone,
   user_id,
-  { allowDuplicate = false } = {}
+  { allowDuplicate = false, emergency = false } = {}
 ) => {
   const { data } = await api.post(`/contact`, {
     firstName,
@@ -51,6 +54,7 @@ export const createNewContact = async (
     email,
     phone,
     address,
+    emergency,
     allowDuplicate,
   });
   notifyContactsChanged();
@@ -62,7 +66,10 @@ export const getContactById = async (contactId) => {
   return data;
 };
 
-/** `allowDuplicate` saves even if another contact has the same phone or email ("Save anyway"). */
+/**
+ * `emergency` marks or unmarks it as an emergency contact; left out, it stays as it is. `allowDuplicate` saves
+ * even if another contact has the same phone or email ("Save anyway").
+ */
 export const updateContact = async (
   contactId,
   firstName,
@@ -70,7 +77,7 @@ export const updateContact = async (
   email,
   phone,
   address,
-  { allowDuplicate = false } = {}
+  { allowDuplicate = false, emergency } = {}
 ) => {
   const { data } = await api.put(`/contact/${contactId}`, {
     firstName,
@@ -78,14 +85,24 @@ export const updateContact = async (
     email,
     phone,
     address,
+    emergency,
     allowDuplicate,
   });
+  // The Emergency count changes if the box was ticked or unticked.
+  notifyContactsChanged();
   return data;
 };
 
 /** Stars (`true`) or unstars (`false`) a contact. Returns the updated contact. */
 export const setFavorite = async (contactId, favorite) => {
   const { data } = await api.patch(`/contact/${contactId}/favorite`, { favorite });
+  notifyContactsChanged();
+  return data;
+};
+
+/** Marks (`true`) or unmarks (`false`) an emergency contact. Returns the updated contact. */
+export const setEmergency = async (contactId, emergency) => {
+  const { data } = await api.patch(`/contact/${contactId}/emergency`, { emergency });
   notifyContactsChanged();
   return data;
 };

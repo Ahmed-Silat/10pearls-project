@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import EmergencyField from "./EmergencyField";
 import { getDuplicates, updateContact } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
@@ -20,6 +21,7 @@ export default function EditModal(props) {
     email: "",
     phoneNo: "",
     address: "",
+    emergency: false,
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
@@ -38,6 +40,8 @@ export default function EditModal(props) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
     setConfirmDuplicates(null);
   };
+
+  const handleEmergencyChange = (checked) => setForm((prev) => ({ ...prev, emergency: checked }));
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
@@ -62,7 +66,7 @@ export default function EditModal(props) {
         validation.data.email,
         validation.data.phoneNo,
         validation.data.address,
-        { allowDuplicate }
+        { allowDuplicate, emergency: form.emergency }
       );
       toast.success("Contact updated");
       props.getContacts();
@@ -90,6 +94,7 @@ export default function EditModal(props) {
         email: props.contactData.email ?? "",
         phoneNo: props.contactData.phone ?? "",
         address: props.contactData.address ?? "",
+        emergency: Boolean(props.contactData.emergency),
       });
     }
   }, [props.contactData]);
@@ -182,6 +187,12 @@ export default function EditModal(props) {
                   value={form.address}
                   onChange={handleChange("address")}
                   error={errors.address}
+                  className="sm:col-span-2"
+                />
+
+                <EmergencyField
+                  checked={form.emergency}
+                  onChange={handleEmergencyChange}
                   className="sm:col-span-2"
                 />
               </div>

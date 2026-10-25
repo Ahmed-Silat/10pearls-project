@@ -28,6 +28,7 @@ function App() {
             {/* Keyed so switching sections starts fresh instead of briefly showing the other list. */}
             <Route path="/" element={<Dashboard key="all" view="all" />} />
             <Route path="/favorites" element={<Dashboard key="favorites" view="favorites" />} />
+            <Route path="/emergency" element={<Dashboard key="emergency" view="emergency" />} />
             {/* </Route> */}
             <Route path="/user-profile" element={<UserProfile />} />
             <Route path="/recently-deleted" element={<RecentlyDeleted />} />
