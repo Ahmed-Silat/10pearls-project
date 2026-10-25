@@ -45,7 +45,7 @@ test("after deleting, the toast offers Undo, which restores the contact", async 
 
   fireEvent.click(undo);
 
-  await waitFor(() => expect(restoreContact).toHaveBeenCalledWith(10));
+  await waitFor(() => expect(restoreContact).toHaveBeenCalledWith(10, { allowDuplicate: false }));
   await waitFor(() => expect(getContacts).toHaveBeenCalledWith({ silent: true }));
   expect(await screen.findByText("Contact restored")).toBeInTheDocument();
 });
@@ -92,4 +92,41 @@ test("if restoring fails, the user is told why", async () => {
   fireEvent.click(await deleteAndGetUndo(jest.fn()));
 
   expect(await screen.findByText("This contact can no longer be restored")).toBeInTheDocument();
+});
+
+test("if undoing would duplicate a newer contact, the error toast offers Restore anyway", async () => {
+  // Watches the toast calls rather than the screen: Sonner keeps toasts from earlier tests around.
+  const success = jest.spyOn(toast, "success");
+  const error = jest.spyOn(toast, "error");
+  deleteContact.mockResolvedValue();
+  restoreContact
+    .mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          message: "You already have a contact with this phone number",
+          duplicates: [{ id: 9, firstName: "zed", lastName: "", field: "phone" }],
+        },
+      },
+    })
+    .mockResolvedValueOnce({ id: 10 });
+  const getContacts = jest.fn();
+  render(<DeleteModal contactId={10} onClose={jest.fn()} getContacts={getContacts} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await waitFor(() => expect(success).toHaveBeenCalledWith("Moved to Recently deleted", expect.anything()));
+  const undo = success.mock.calls.find(([message]) => message === "Moved to Recently deleted")[1].action;
+  await act(async () => undo.onClick());
+
+  await waitFor(() =>
+    expect(error).toHaveBeenCalledWith(
+      "You already have a contact with this phone number",
+      expect.objectContaining({ action: expect.objectContaining({ label: "Restore anyway" }) })
+    )
+  );
+  const restoreAnyway = error.mock.calls.at(-1)[1].action;
+  await act(async () => restoreAnyway.onClick());
+
+  expect(restoreContact).toHaveBeenLastCalledWith(10, { allowDuplicate: true });
+  await waitFor(() => expect(getContacts).toHaveBeenCalledWith({ silent: true }));
 });

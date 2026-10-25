@@ -2,9 +2,10 @@ package com._pearls.contactApp.Service;
 
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
+import com._pearls.contactApp.Dto.DuplicateMatchDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
-import com._pearls.contactApp.ExceptionHandling.DuplicateResourceException;
+import com._pearls.contactApp.ExceptionHandling.DuplicateContactException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
 import com._pearls.contactApp.Model.User;
@@ -22,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com._pearls.contactApp.Util.TextUtils.normalize;
 import static com._pearls.contactApp.Util.TextUtils.trim;
@@ -113,7 +116,7 @@ public class ContactService {
     public ContactDto createContact(Long userId, ContactRequest request) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
-        rejectDuplicates(userId, NEW_CONTACT, request.getPhone(), request.getEmail());
+        rejectDuplicates(userId, NEW_CONTACT, request.getPhone(), request.getEmail(), request.isAllowDuplicate());
         Contact contact = Contact.builder()
                 .firstName(normalize(request.getFirstName()))
                 .lastName(normalize(request.getLastName()))
@@ -128,7 +131,7 @@ public class ContactService {
     @Transactional
     public ContactDto updateContact(Long id, Long userId, ContactRequest request) {
         Contact contact = findOwnedContact(id, userId);
-        rejectDuplicates(userId, id, request.getPhone(), request.getEmail());
+        rejectDuplicates(userId, id, request.getPhone(), request.getEmail(), request.isAllowDuplicate());
         contact.setFirstName(normalize(request.getFirstName()));
         contact.setLastName(normalize(request.getLastName()));
         contact.setEmail(normalize(request.getEmail()));
@@ -174,14 +177,14 @@ public class ContactService {
 
     /**
      * Brings a contact back from Recently deleted with its id and star. 404 if it isn't there (or has expired);
-     * 409 if a contact with the same phone or email was added in the meantime.
+     * 409 if a contact with the same phone or email was added in the meantime, unless {@code allowDuplicate}.
      */
     @Transactional
-    public ContactDto restoreContact(Long id, Long userId) {
+    public ContactDto restoreContact(Long id, Long userId, boolean allowDuplicate) {
         Contact contact = contactRepo.findDeletedByIdAndUserId(id, userId)
                 .filter(deleted -> deleted.getDeletedAt().isAfter(retentionCutoff()))
                 .orElseThrow(() -> new ResourceNotFoundException(NO_LONGER_RESTORABLE));
-        rejectDuplicates(userId, id, contact.getPhone(), contact.getEmail());
+        rejectDuplicates(userId, id, contact.getPhone(), contact.getEmail(), allowDuplicate);
         contact.setDeletedAt(null);
         return toDto(contactRepo.save(contact));
     }
@@ -214,19 +217,44 @@ public class ContactService {
     }
 
     /**
-     * Stops the user saving the same person twice: another of their contacts already has this phone number
-     * (compared by digits only, so "0300-1234567" and "03001234567" match) or this email.
+     * The user's other contacts with this phone number (compared by digits only, so "0300-1234567" and
+     * "03001234567" match) or this email (ignoring case). Phone matches come first. {@code excludeContactId} is
+     * the contact being edited, or 0 for a new one. Deleted contacts never count.
      */
-    private void rejectDuplicates(Long userId, long excludeContactId, String phone, String rawEmail) {
+    @Transactional(readOnly = true)
+    public List<DuplicateMatchDto> findDuplicates(Long userId, long excludeContactId, String phone, String rawEmail) {
+        List<DuplicateMatchDto> matches = new ArrayList<>();
         String phoneDigits = phone == null ? "" : phone.replaceAll("\\D", "");
-        if (!phoneDigits.isEmpty() && contactRepo.existsPhoneForUser(userId, phoneDigits, excludeContactId)) {
-            throw new DuplicateResourceException(DUPLICATE_PHONE);
+        if (!phoneDigits.isEmpty()) {
+            contactRepo.findPhoneMatches(userId, phoneDigits, excludeContactId)
+                    .forEach(match -> matches.add(toMatch(match, "phone")));
         }
         String email = normalize(rawEmail);
-        if (email != null && !email.isEmpty()
-                && contactRepo.existsByUser_IdAndEmailIgnoreCaseAndIdNot(userId, email, excludeContactId)) {
-            throw new DuplicateResourceException(DUPLICATE_EMAIL);
+        if (email != null && !email.isEmpty()) {
+            contactRepo.findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(userId, email, excludeContactId)
+                    .forEach(match -> matches.add(toMatch(match, "email")));
         }
+        return matches;
+    }
+
+    /**
+     * Stops the user saving the same person twice by accident: 409 listing the matching contacts, unless the
+     * user has already seen the warning and chosen to save anyway.
+     */
+    private void rejectDuplicates(Long userId, long excludeContactId, String phone, String email,
+                                  boolean allowDuplicate) {
+        if (allowDuplicate) {
+            return;
+        }
+        List<DuplicateMatchDto> matches = findDuplicates(userId, excludeContactId, phone, email);
+        if (!matches.isEmpty()) {
+            boolean phoneClash = matches.stream().anyMatch(match -> "phone".equals(match.field()));
+            throw new DuplicateContactException(phoneClash ? DUPLICATE_PHONE : DUPLICATE_EMAIL, matches);
+        }
+    }
+
+    private static DuplicateMatchDto toMatch(Contact contact, String field) {
+        return new DuplicateMatchDto(contact.getId(), contact.getFirstName(), contact.getLastName(), field);
     }
 
     /**

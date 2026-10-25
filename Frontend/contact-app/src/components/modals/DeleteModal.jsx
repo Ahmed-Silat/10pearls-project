@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Modal from "../ui/Modal";
 import Button from "../button/Button";
-import { deleteContact, restoreContact } from "../../service/ContactService";
+import { deleteContact, getDuplicates, restoreContact } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
 import { TrashIcon } from "../icons/Icons";
 
@@ -13,16 +13,24 @@ export const UNDO_TOAST_MS = 8000;
  * Brings a just-deleted contact back. Runs from the toast, after this modal (and often the contact's card)
  * has gone, so it only uses values passed in, not component state.
  */
-const undoDelete = async (contactId, reloadContacts) => {
+const undoDelete = async (contactId, reloadContacts, { allowDuplicate = false } = {}) => {
   // One toast that shows a spinner while restoring, then turns into the result.
   const toastId = toast.loading("Restoring contact...");
   try {
-    await restoreContact(contactId);
+    await restoreContact(contactId, { allowDuplicate });
     // Keep the spinner until the contact is back on screen.
     await reloadContacts({ silent: true });
     toast.success("Contact restored", { id: toastId });
   } catch (error) {
-    toast.error(getApiErrorMessage(error, "Couldn't restore the contact."), { id: toastId });
+    // A contact with the same phone or email was added since the delete: let the user decide.
+    const restoreAnyway = getDuplicates(error) && {
+      label: "Restore anyway",
+      onClick: () => undoDelete(contactId, reloadContacts, { allowDuplicate: true }),
+    };
+    toast.error(getApiErrorMessage(error, "Couldn't restore the contact."), {
+      id: toastId,
+      ...(restoreAnyway && { action: restoreAnyway, duration: UNDO_TOAST_MS }),
+    });
   }
 };
 

@@ -17,6 +17,7 @@ jest.mock("axios", () => ({
 }));
 
 jest.mock("../../service/ContactService", () => ({
+  getDuplicates: jest.requireActual("../../service/ContactService").getDuplicates,
   getRecentlyDeleted: jest.fn(),
   restoreContact: jest.fn(),
   deletePermanently: jest.fn(),
@@ -85,7 +86,7 @@ test("Restore brings the contact back and refreshes the list", async () => {
 
   fireEvent.click(within(await rowFor("ali khan")).getByRole("button", { name: "Restore" }));
 
-  await waitFor(() => expect(restoreContact).toHaveBeenCalledWith(1));
+  await waitFor(() => expect(restoreContact).toHaveBeenCalledWith(1, { allowDuplicate: false }));
   expect(await screen.findByText("Contact restored")).toBeInTheDocument();
   expect(await screen.findByText("Nothing here")).toBeInTheDocument();
 });
@@ -137,4 +138,27 @@ test("timeLeftLabel counts whole days left", () => {
   expect(timeLeftLabel("2026-11-23T12:00:00Z", now)).toBe("30 days left");
   expect(timeLeftLabel("2026-10-25T18:00:00Z", now)).toBe("1 day left");
   expect(timeLeftLabel("2026-10-25T06:00:00Z", now)).toBe("Less than a day left");
+});
+
+test("when the restore would duplicate a newer contact, the toast offers Restore anyway", async () => {
+  getRecentlyDeleted.mockResolvedValue(pageOf([deletedContact(1, "ali", 2)]));
+  restoreContact
+    .mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          message: "You already have a contact with this phone number",
+          duplicates: [{ id: 9, firstName: "zed", lastName: "", field: "phone" }],
+        },
+      },
+    })
+    .mockResolvedValueOnce({ id: 1 });
+  renderPage();
+
+  fireEvent.click(within(await rowFor("ali khan")).getByRole("button", { name: "Restore" }));
+  const restoreAnyway = await screen.findByRole("button", { name: "Restore anyway" });
+
+  fireEvent.click(restoreAnyway);
+
+  await waitFor(() => expect(restoreContact).toHaveBeenLastCalledWith(1, { allowDuplicate: true }));
 });

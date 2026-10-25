@@ -18,13 +18,40 @@ export const getContactCounts = async () => {
   return data;
 };
 
-export const createNewContact = async (firstName, lastName, email, address, phone, user_id) => {
+/**
+ * The contacts listed in a "duplicate" 409 (`[{ id, firstName, lastName, field }]`), or null for any other error.
+ * The caller can then ask "Save anyway?" and resend with `allowDuplicate`.
+ */
+export const getDuplicates = (error) =>
+  error?.response?.status === 409 && Array.isArray(error.response.data?.duplicates)
+    ? error.response.data.duplicates
+    : null;
+
+/** Contacts that already have this phone number or email, for warning while a form is filled in. */
+export const checkDuplicates = async ({ phone, email, excludeId }) => {
+  const { data } = await api.get(`/contact/duplicates`, {
+    params: { phone: phone || undefined, email: email || undefined, excludeId },
+  });
+  return data;
+};
+
+/** `allowDuplicate` saves even if another contact has the same phone or email ("Save anyway"). */
+export const createNewContact = async (
+  firstName,
+  lastName,
+  email,
+  address,
+  phone,
+  user_id,
+  { allowDuplicate = false } = {}
+) => {
   const { data } = await api.post(`/contact`, {
     firstName,
     lastName,
     email,
     phone,
     address,
+    allowDuplicate,
   });
   notifyContactsChanged();
   return data;
@@ -35,13 +62,23 @@ export const getContactById = async (contactId) => {
   return data;
 };
 
-export const updateContact = async (contactId, firstName, lastName, email, phone, address) => {
+/** `allowDuplicate` saves even if another contact has the same phone or email ("Save anyway"). */
+export const updateContact = async (
+  contactId,
+  firstName,
+  lastName,
+  email,
+  phone,
+  address,
+  { allowDuplicate = false } = {}
+) => {
   const { data } = await api.put(`/contact/${contactId}`, {
     firstName,
     lastName,
     email,
     phone,
     address,
+    allowDuplicate,
   });
   return data;
 };
@@ -65,9 +102,14 @@ export const deletePermanently = async (contactId) => {
   notifyContactsChanged();
 };
 
-/** Moves a contact out of Recently deleted, back into the contact list. Returns the restored contact. */
-export const restoreContact = async (contactId) => {
-  const { data } = await api.post(`/contact/${contactId}/restore`);
+/**
+ * Moves a contact out of Recently deleted, back into the contact list. Returns the restored contact.
+ * `allowDuplicate` restores it even if a contact with the same phone or email was added since.
+ */
+export const restoreContact = async (contactId, { allowDuplicate = false } = {}) => {
+  const { data } = await api.post(`/contact/${contactId}/restore`, null, {
+    params: allowDuplicate ? { allowDuplicate } : undefined,
+  });
   notifyContactsChanged();
   return data;
 };

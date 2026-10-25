@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificationExecutor<Contact> {
@@ -52,21 +53,23 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
     long countDeletedByUserId(@Param("userId") Long userId, @Param("cutoff") Instant cutoff);
 
     /**
-     * Whether another of the user's contacts has this phone number, comparing digits only so formatting
+     * The user's other contacts with this phone number (up to 5), comparing digits only so formatting
      * ("0300-1234567" vs "03001234567") doesn't matter. {@code excludeId} is the contact being edited, or 0.
      */
     @Query(value = """
-            SELECT EXISTS (
-                SELECT 1 FROM contacts
-                WHERE user_id = :userId
-                  AND contact_id <> :excludeId
-                  AND deleted_at IS NULL
-                  AND regexp_replace(phone, '[^0-9]', '', 'g') = :phoneDigits)
+            SELECT * FROM contacts
+            WHERE user_id = :userId
+              AND contact_id <> :excludeId
+              AND deleted_at IS NULL
+              AND regexp_replace(phone, '[^0-9]', '', 'g') = :phoneDigits
+            ORDER BY contact_id
+            LIMIT 5
             """, nativeQuery = true)
-    boolean existsPhoneForUser(@Param("userId") Long userId, @Param("phoneDigits") String phoneDigits,
-                               @Param("excludeId") long excludeId);
+    List<Contact> findPhoneMatches(@Param("userId") Long userId, @Param("phoneDigits") String phoneDigits,
+                                   @Param("excludeId") long excludeId);
 
-    boolean existsByUser_IdAndEmailIgnoreCaseAndIdNot(Long userId, String email, Long id);
+    /** The user's other contacts with this email (up to 5), ignoring case. */
+    List<Contact> findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(Long userId, String email, Long id);
 
     /** One of the user's deleted (not yet purged) contacts. Native, so the entity's "not deleted" filter doesn't apply. */
     @Query(value = """
