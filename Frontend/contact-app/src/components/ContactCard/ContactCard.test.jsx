@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import ContactCard from "./ContactCard";
-import { getContactById, setFavorite } from "../../service/ContactService";
+import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 
 jest.mock("../../service/ContactService");
 
@@ -222,4 +222,76 @@ test("while searching, the matching start of each field is highlighted", () => {
   expect(marks).toEqual(["0300"]);
   // The name still reads in full for screen readers and tests.
   expect(screen.getByRole("button", { name: LONG_NAME })).toBeInTheDocument();
+});
+
+describe("emergency contacts", () => {
+  afterEach(() => setEmergency.mockReset());
+
+  const toggle = () => screen.getByRole("button", { name: /emergency contacts?$/ });
+  const badge = () => screen.queryByRole("img", { name: "Emergency contact" });
+
+  test("a normal contact shows an unpressed button and no badge", () => {
+    renderCard();
+    expect(toggle()).toHaveAttribute("aria-pressed", "false");
+    expect(toggle()).toHaveAccessibleName(`Mark ${LONG_NAME} as an emergency contact`);
+    expect(badge()).not.toBeInTheDocument();
+  });
+
+  test("clicking it saves, shows the badge and quietly reloads the list", async () => {
+    setEmergency.mockResolvedValue({});
+    const fetchContacts = jest.fn();
+    renderCard({ fetchContacts });
+
+    fireEvent.click(toggle());
+
+    await waitFor(() => expect(toggle()).toHaveAttribute("aria-pressed", "true"));
+    expect(setEmergency).toHaveBeenCalledWith("c1", true);
+    expect(fetchContacts).toHaveBeenCalledWith({ silent: true });
+    expect(badge()).toBeInTheDocument();
+  });
+
+  test("while saving, it shows a spinner and can't be clicked again", async () => {
+    let finishSaving;
+    setEmergency.mockReturnValue(new Promise((resolve) => (finishSaving = resolve)));
+    renderCard();
+
+    fireEvent.click(toggle());
+
+    expect(toggle()).toBeDisabled();
+    expect(toggle()).toHaveAttribute("aria-busy", "true");
+    expect(toggle().querySelector("svg.animate-spin")).not.toBeNull();
+
+    await act(async () => finishSaving({}));
+    await waitFor(() => expect(toggle()).not.toHaveAttribute("aria-busy"));
+  });
+
+  test("an emergency contact shows the badge and can be unmarked", async () => {
+    setEmergency.mockResolvedValue({});
+    renderCard({ emergency: true });
+    expect(badge()).toBeInTheDocument();
+    expect(toggle()).toHaveAccessibleName(`Remove ${LONG_NAME} from emergency contacts`);
+
+    fireEvent.click(toggle());
+
+    await waitFor(() => expect(setEmergency).toHaveBeenCalledWith("c1", false));
+    await waitFor(() => expect(badge()).not.toBeInTheDocument());
+  });
+
+  test("if saving fails, it stays as it was", async () => {
+    setEmergency.mockRejectedValue(new Error("offline"));
+    const fetchContacts = jest.fn();
+    renderCard({ fetchContacts });
+
+    fireEvent.click(toggle());
+
+    await waitFor(() => expect(toggle()).not.toHaveAttribute("aria-busy"));
+    expect(toggle()).toHaveAttribute("aria-pressed", "false");
+    expect(fetchContacts).not.toHaveBeenCalled();
+  });
+
+  test("the details say it's an emergency contact", () => {
+    renderCard({ emergency: true });
+    fireEvent.click(screen.getByRole("button", { name: `View ${LONG_NAME}` }));
+    expect(within(screen.getByRole("dialog")).getByText("Emergency contact")).toBeInTheDocument();
+  });
 });

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import EditModal from "./EditModal";
-import { checkDuplicates } from "../../service/ContactService";
+import { checkDuplicates, updateContact } from "../../service/ContactService";
 
 // axios ships as an ES module that Create React App's Jest setup can't load; the API calls are mocked below.
 jest.mock("axios", () => ({
@@ -34,4 +34,23 @@ test("the duplicate check leaves out the contact being edited", async () => {
     excludeId: 7,
   });
   expect(screen.queryByText("Possible duplicate")).not.toBeInTheDocument();
+});
+
+test("shows whether it's an emergency contact, and saves the change", async () => {
+  updateContact.mockResolvedValue({});
+  render(
+    <EditModal
+      contactData={{ id: 7, firstName: "mom", phone: "0300 1234567", emergency: true }}
+      onClose={jest.fn()}
+      getContacts={jest.fn()}
+    />
+  );
+  const checkbox = screen.getByRole("checkbox", { name: "Emergency contact" });
+  expect(checkbox).toBeChecked();
+
+  fireEvent.click(checkbox);
+  fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
+  await waitFor(() => expect(updateContact).toHaveBeenCalledTimes(1));
+  expect(updateContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false });
 });

@@ -5,6 +5,7 @@ import { createNewContact, getDuplicates } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import EmergencyField from "./EmergencyField";
 import { PlusIcon } from "../icons/Icons";
 import { createContactSchema } from "../../validation/createContactSchema";
 import { validateWith } from "../../validation/common";
@@ -17,10 +18,12 @@ const emptyContact = {
   email: "",
   phoneNo: "",
   address: "",
+  emergency: false,
 };
 
+/** `defaultEmergency` starts with "Emergency contact" ticked (used on the Emergency page). */
 export default function AddContactModal(props) {
-  const [form, setForm] = useState(emptyContact);
+  const [form, setForm] = useState(() => ({ ...emptyContact, emergency: Boolean(props.defaultEmergency) }));
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,6 +37,8 @@ export default function AddContactModal(props) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
     setConfirmDuplicates(null);
   };
+
+  const handleEmergencyChange = (checked) => setForm((prev) => ({ ...prev, emergency: checked }));
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
@@ -58,7 +63,7 @@ export default function AddContactModal(props) {
         validation.data.address,
         validation.data.phoneNo,
         userId,
-        { allowDuplicate }
+        { allowDuplicate, emergency: form.emergency }
       );
       toast.success("Contact added");
       props.fetchContacts();
@@ -155,6 +160,12 @@ export default function AddContactModal(props) {
                 value={form.address}
                 onChange={handleChange("address")}
                 error={errors.address}
+                className="sm:col-span-2"
+              />
+
+              <EmergencyField
+                checked={form.emergency}
+                onChange={handleEmergencyChange}
                 className="sm:col-span-2"
               />
             </div>

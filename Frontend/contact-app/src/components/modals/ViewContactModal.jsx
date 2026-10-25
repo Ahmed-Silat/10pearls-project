@@ -1,7 +1,7 @@
 import Modal from "../ui/Modal";
 import Button from "../button/Button";
 import EmptyValue from "../ui/EmptyValue";
-import { MailIcon, PencilIcon, PhoneIcon, PinIcon } from "../icons/Icons";
+import { EmergencyIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon } from "../icons/Icons";
 
 /** Read-only view of a contact, so long names and details can be seen in full. */
 export default function ViewContactModal({ contact, onClose, onEdit }) {
@@ -40,6 +40,12 @@ export default function ViewContactModal({ contact, onClose, onEdit }) {
           <p className="mt-0.5 text-xs font-medium uppercase tracking-wider text-slate-400">
             Contact details
           </p>
+          {contact.emergency && (
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 ring-1 ring-inset ring-red-200">
+              <EmergencyIcon className="h-3 w-3" />
+              Emergency contact
+            </span>
+          )}
         </div>
 
         <dl className="mt-5 divide-y divide-slate-100 rounded-xl bg-slate-50 ring-1 ring-slate-200">

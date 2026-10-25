@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  EmergencyIcon,
   EyeIcon,
   MailIcon,
   PencilIcon,
@@ -16,13 +17,17 @@ import ViewContactModal from "../modals/ViewContactModal";
 import EmptyValue from "../ui/EmptyValue";
 import Highlight from "../ui/Highlight";
 import Spinner from "../ui/Spinner";
-import { getContactById, setFavorite } from "../../service/ContactService";
+import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
 
 const ContactCard = (props) => {
   const [isFavorite, setIsFavorite] = useState(Boolean(props.favorite));
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   useEffect(() => setIsFavorite(Boolean(props.favorite)), [props.favorite]);
+
+  const [isEmergency, setIsEmergency] = useState(Boolean(props.emergency));
+  const [isSavingEmergency, setIsSavingEmergency] = useState(false);
+  useEffect(() => setIsEmergency(Boolean(props.emergency)), [props.emergency]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -83,16 +88,49 @@ const ContactCard = (props) => {
     }
   };
 
+  const emergencyLabel = isEmergency
+    ? `Remove ${fullName} from emergency contacts`
+    : `Mark ${fullName} as an emergency contact`;
+
+  /** Same as the star: a spinner until it's saved, then a quiet reload so the Emergency page stays in step. */
+  const toggleEmergency = async () => {
+    if (isSavingEmergency) return;
+    const next = !isEmergency;
+    setIsSavingEmergency(true);
+    try {
+      await setEmergency(props.contactId, next);
+      setIsEmergency(next);
+      toast.success(next ? "Marked as an emergency contact" : "Removed from emergency contacts");
+      await props.fetchContacts({ silent: true });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Couldn't update emergency contacts. Please try again."));
+    } finally {
+      setIsSavingEmergency(false);
+    }
+  };
+
+  // Emergency outranks the star for the outline colour, as it's the more urgent one to spot.
+  const ringColor = isEmergency ? "ring-red-300" : isFavorite ? "ring-amber-300" : "ring-slate-200/70";
+
   return (
     <div
       data-contact-card
-      className={`group my-2 flex flex-col rounded-2xl bg-white shadow-card ring-1 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-        isFavorite ? "ring-amber-300" : "ring-slate-200/70"
-      }`}
+      className={`group my-2 flex flex-col rounded-2xl bg-white shadow-card ring-1 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${ringColor}`}
     >
       <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-sky-50 to-cyan-50 p-5">
-        <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-cyan-600 text-base font-bold text-white shadow-md shadow-sky-600/30">
+        <span className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-cyan-600 text-base font-bold text-white shadow-md shadow-sky-600/30">
           {initials}
+          {/* A badge on the avatar rather than a label, so emergency cards are the same height as the rest. */}
+          {isEmergency && (
+            <span
+              role="img"
+              aria-label="Emergency contact"
+              title="Emergency contact"
+              className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white ring-2 ring-white"
+            >
+              <EmergencyIcon className="h-2.5 w-2.5" />
+            </span>
+          )}
         </span>
         {/* The name gets the full width; clicking it opens the details, hovering shows it in full. */}
         <h2 className="min-w-0 flex-1">
@@ -177,6 +215,28 @@ const ContactCard = (props) => {
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={toggleEmergency}
+            disabled={isSavingEmergency}
+            aria-pressed={isEmergency}
+            aria-busy={isSavingEmergency || undefined}
+            aria-label={emergencyLabel}
+            title={
+              isSavingEmergency
+                ? "Saving..."
+                : isEmergency
+                  ? "Remove from emergency contacts"
+                  : "Mark as emergency contact"
+            }
+            className={`rounded-lg p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-wait ${
+              isEmergency || isSavingEmergency
+                ? "text-red-500 hover:bg-red-100 hover:text-red-600"
+                : "text-slate-400 hover:bg-red-50 hover:text-red-500"
+            }`}
+          >
+            {isSavingEmergency ? <Spinner className="h-4 w-4" /> : <EmergencyIcon className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
             onClick={openEditModal}
             aria-label={`Edit ${fullName}`}
             title="Edit"
@@ -198,7 +258,7 @@ const ContactCard = (props) => {
 
       {isViewModalOpen && (
         <ViewContactModal
-          contact={props}
+          contact={{ ...props, favorite: isFavorite, emergency: isEmergency }}
           onClose={closeViewModal}
           onEdit={() => {
             closeViewModal();

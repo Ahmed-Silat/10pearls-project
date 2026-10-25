@@ -29,6 +29,12 @@ public class ContactRequest {
     @Size(max = 255, message = "address must be at most 255 characters")
     private String address;
 
+    /**
+     * Whether this is an emergency contact. Optional: a new contact without it is not one, and an edit without it
+     * keeps the current value, so older clients can't unmark a contact by accident.
+     */
+    private Boolean emergency;
+
     /** Save even if another contact has the same phone or email (the user chose "Save anyway"). */
     private boolean allowDuplicate;
 }

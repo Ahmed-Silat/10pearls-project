@@ -72,8 +72,8 @@ test("a duplicate on save asks whether to save anyway, and does so", async () =>
   fireEvent.click(screen.getByRole("button", { name: "Save anyway" }));
 
   await waitFor(() => expect(createNewContact).toHaveBeenCalledTimes(2));
-  expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false });
-  expect(createNewContact.mock.calls[1][6]).toEqual({ allowDuplicate: true });
+  expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false });
+  expect(createNewContact.mock.calls[1][6]).toEqual({ allowDuplicate: true, emergency: false });
 });
 
 test("Go back returns to the form without saving", async () => {
@@ -101,4 +101,32 @@ test("editing a field after the warning goes back to a normal save", async () =>
 
   expect(screen.getByRole("button", { name: "Add Contact" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Save anyway" })).not.toBeInTheDocument();
+});
+
+describe("emergency contact", () => {
+  afterEach(() => createNewContact.mockReset());
+
+  const checkbox = () => screen.getByRole("checkbox", { name: "Emergency contact" });
+
+  test("starts unticked", () => {
+    renderModal();
+    expect(checkbox()).not.toBeChecked();
+  });
+
+  test("ticking it saves the new contact as an emergency contact", async () => {
+    createNewContact.mockResolvedValue({ id: 9 });
+    renderModal();
+    fillValidContact();
+
+    fireEvent.click(checkbox());
+    fireEvent.click(screen.getByRole("button", { name: "Add Contact" }));
+
+    await waitFor(() => expect(createNewContact).toHaveBeenCalledTimes(1));
+    expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: true });
+  });
+
+  test("opened from the Emergency page, it starts ticked", () => {
+    render(<AddContactModal userId="user-1" onClose={jest.fn()} fetchContacts={jest.fn()} defaultEmergency />);
+    expect(checkbox()).toBeChecked();
+  });
 });

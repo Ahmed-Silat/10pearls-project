@@ -117,6 +117,7 @@ test("the page layout includes the sidebar's section links", () => {
 
   const sections = screen.getByRole("navigation", { name: "Sections" });
   expect(within(sections).getByRole("link", { name: /^Favorites/ })).toHaveAttribute("href", "/favorites");
+  expect(within(sections).getByRole("link", { name: /^Emergency/ })).toHaveAttribute("href", "/emergency");
   expect(within(sections).getByRole("link", { name: /^Recently deleted/ })).toHaveAttribute(
     "href",
     "/recently-deleted"

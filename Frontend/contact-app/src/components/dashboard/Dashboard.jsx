@@ -11,7 +11,7 @@ import Spinner from "../ui/Spinner";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "../../service/Constants";
 import Dropdown from "../ui/Dropdown";
-import { PlusIcon, SortAZIcon, SortZAIcon, StarIcon, UsersIcon } from "../icons/Icons";
+import { EmergencyIcon, PlusIcon, SortAZIcon, SortZAIcon, StarIcon, UsersIcon } from "../icons/Icons";
 
 /** How long typing must pause before searching: short enough to feel instant, long enough to skip most keystrokes. */
 export const SEARCH_DEBOUNCE_MS = 500;
@@ -21,6 +21,41 @@ const SORT_OPTIONS = [
   { value: "Z-A", label: "Name (Z–A)", icon: SortZAIcon },
 ];
 
+/**
+ * The text and icons for each section. `empty` is shown when the section has no contacts yet; the All contacts
+ * page has its own empty state with an Add button instead.
+ */
+const VIEWS = {
+  all: {
+    title: "My Contacts",
+    subtitle: "Manage, search and organize everyone you know.",
+    noun: "contacts",
+    Icon: UsersIcon,
+  },
+  favorites: {
+    title: "Favorites",
+    subtitle: "The contacts you've starred, all in one place.",
+    noun: "favorites",
+    Icon: StarIcon,
+    empty: {
+      title: "No favorites yet",
+      text: "Tap the star on a contact to add it here, so the people you need most are one click away.",
+      iconClassName: "bg-amber-50 text-amber-300",
+    },
+  },
+  emergency: {
+    title: "Emergency",
+    subtitle: "The people to call first when something goes wrong.",
+    noun: "emergency contacts",
+    Icon: EmergencyIcon,
+    empty: {
+      title: "No emergency contacts yet",
+      text: "Tap the first-aid button on a contact, or tick \"Emergency contact\" when adding one, so the people to call in a crisis are one click away.",
+      iconClassName: "bg-red-50 text-red-300",
+    },
+  },
+};
+
 /** Reads a whole number > 0 from a URL value, or returns the fallback (e.g. for "abc" or "0"). */
 const parsePositiveInt = (value, fallback) => {
   const number = Number.parseInt(value, 10);
@@ -28,12 +63,12 @@ const parsePositiveInt = (value, fallback) => {
 };
 
 /**
- * A list of contacts. `view` is the sidebar section: "all" (every contact) or "favorites" (starred only).
- * Both share the cards, search, sorting and paging.
+ * A list of contacts. `view` is the sidebar section: "all" (every contact), "favorites" (starred only) or
+ * "emergency" (emergency contacts only). They share the cards, search, sorting and paging.
  */
 export default function Dashboard({ view = "all" }) {
-  const isFavorites = view === "favorites";
-  const EmptyIcon = isFavorites ? StarIcon : UsersIcon;
+  const section = VIEWS[view] ?? VIEWS.all;
+  const EmptyIcon = section.Icon;
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [paginationData, setPaginationData] = useState();
@@ -165,13 +200,9 @@ export default function Dashboard({ view = "all" }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {isFavorites ? "Favorites" : "My Contacts"}
+            {section.title}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {isFavorites
-              ? "The contacts you've starred, all in one place."
-              : "Manage, search and organize everyone you know."}
-          </p>
+          <p className="mt-1 text-sm text-slate-500">{section.subtitle}</p>
         </div>
 
         {/* Stacked full-width on phones, side by side from the "sm" breakpoint up. */}
@@ -224,6 +255,7 @@ export default function Dashboard({ view = "all" }) {
                 email={value.email}
                 address={value.address}
                 favorite={value.favorite}
+                emergency={value.emergency}
                 highlight={debouncedSearchTerm}
                 userId={currentUser.id}
                 fetchContacts={loadContacts}
@@ -239,23 +271,20 @@ export default function Dashboard({ view = "all" }) {
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
               <EmptyIcon className="h-8 w-8 text-slate-400" />
             </span>
-            <h2 className="mt-4 text-lg font-semibold text-slate-700">
-              No {isFavorites ? "favorites" : "contacts"} found
-            </h2>
+            <h2 className="mt-4 text-lg font-semibold text-slate-700">No {section.noun} found</h2>
             <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
-              No {isFavorites ? "favorites" : "contacts"} match &ldquo;{search}&rdquo;. Try a different
-              name, email or phone number.
+              No {section.noun} match &ldquo;{search}&rdquo;. Try a different name, email or phone number.
             </p>
           </div>
-        ) : isFavorites ? (
+        ) : section.empty ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
-              <StarIcon className="h-8 w-8 text-amber-300" />
+            <span
+              className={`flex h-16 w-16 items-center justify-center rounded-full ${section.empty.iconClassName}`}
+            >
+              <EmptyIcon className="h-8 w-8" />
             </span>
-            <h2 className="mt-4 text-lg font-semibold text-slate-700">No favorites yet</h2>
-            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
-              Tap the star on a contact to add it here, so the people you need most are one click away.
-            </p>
+            <h2 className="mt-4 text-lg font-semibold text-slate-700">{section.empty.title}</h2>
+            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">{section.empty.text}</p>
             <Link
               to="/"
               className="mt-6 inline-flex items-center rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 transition-colors hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
@@ -289,6 +318,8 @@ export default function Dashboard({ view = "all" }) {
           onClose={closeAddContactModal}
           userId={currentUser.id}
           fetchContacts={loadContacts}
+          // Added from the Emergency page: tick the box, so the new contact shows up on this page.
+          defaultEmergency={view === "emergency"}
         />
       )}
       {/* Only needed when the contacts don't fit on one page. */}

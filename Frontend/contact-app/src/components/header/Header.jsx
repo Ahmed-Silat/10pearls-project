@@ -15,7 +15,7 @@ import Spinner from "../ui/Spinner";
 import Sidebar, { SidebarNav } from "../sidebar/Sidebar";
 
 /** Pages showing a contact list; the header search filters whichever one is open. */
-const SEARCHABLE_PAGES = ["/", "/favorites"];
+const SEARCHABLE_PAGES = ["/", "/favorites", "/emergency"];
 
 export const LOGOUT_DELAY_MS = 800;
 

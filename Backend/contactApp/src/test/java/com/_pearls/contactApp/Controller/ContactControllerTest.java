@@ -273,12 +273,13 @@ class ContactControllerTest {
 
     @Test
     void getCounts_returnsEachSection() throws Exception {
-        when(contactService.getCounts(1L)).thenReturn(new ContactCountsDto(24, 5, 3));
+        when(contactService.getCounts(1L)).thenReturn(new ContactCountsDto(24, 5, 2, 3));
 
         mockMvc.perform(asUser(get("/contact/counts"), 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.all", org.hamcrest.Matchers.is(24)))
                 .andExpect(jsonPath("$.favorites", org.hamcrest.Matchers.is(5)))
+                .andExpect(jsonPath("$.emergency", org.hamcrest.Matchers.is(2)))
                 .andExpect(jsonPath("$.recentlyDeleted", org.hamcrest.Matchers.is(3)));
     }
 
@@ -290,5 +291,28 @@ class ContactControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(contactService, never()).setFavorite(any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void setEmergency_returnsUpdatedContact() throws Exception {
+        ContactDto marked = sampleContact(10L);
+        marked.setEmergency(true);
+        when(contactService.setEmergency(10L, 1L, true)).thenReturn(marked);
+
+        mockMvc.perform(asUser(patch("/contact/{id}/emergency", 10L), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"emergency\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emergency", org.hamcrest.Matchers.is(true)));
+    }
+
+    @Test
+    void setEmergency_withoutAValue_returns400() throws Exception {
+        mockMvc.perform(asUser(patch("/contact/{id}/emergency", 10L), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(contactService, never()).setEmergency(any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 }

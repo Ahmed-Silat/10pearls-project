@@ -17,12 +17,13 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
 
     /**
      * Prefix search across name/email/phone/address. {@code pattern} must already have wildcards escaped.
-     * {@code favoritesOnly} limits it to starred contacts (the Favorites page).
+     * {@code favoritesOnly} and {@code emergencyOnly} limit it to the Favorites or Emergency page.
      */
     @Query("""
             SELECT c FROM Contact c
             WHERE c.user.id = :userId
               AND (:favoritesOnly = false OR c.favorite = true)
+              AND (:emergencyOnly = false OR c.emergency = true)
               AND (LOWER(c.firstName) LIKE LOWER(:pattern)
                OR LOWER(c.lastName)  LIKE LOWER(:pattern)
                OR LOWER(c.email)     LIKE LOWER(:pattern)
@@ -30,20 +31,27 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
                OR LOWER(c.address)   LIKE LOWER(:pattern))
             """)
     Page<Contact> searchByUserId(@Param("userId") Long userId, @Param("pattern") String pattern,
-                                 @Param("favoritesOnly") boolean favoritesOnly, Pageable pageable);
+                                 @Param("favoritesOnly") boolean favoritesOnly,
+                                 @Param("emergencyOnly") boolean emergencyOnly, Pageable pageable);
 
-    /** The user's contacts; {@code favoritesOnly} limits it to starred ones (the Favorites page). */
+    /**
+     * The user's contacts; {@code favoritesOnly} limits it to starred ones (the Favorites page) and
+     * {@code emergencyOnly} to emergency contacts (the Emergency page).
+     */
     @Query("""
             SELECT c FROM Contact c
             WHERE c.user.id = :userId
               AND (:favoritesOnly = false OR c.favorite = true)
+              AND (:emergencyOnly = false OR c.emergency = true)
             """)
     Page<Contact> findForUser(@Param("userId") Long userId, @Param("favoritesOnly") boolean favoritesOnly,
-                              Pageable pageable);
+                              @Param("emergencyOnly") boolean emergencyOnly, Pageable pageable);
 
     long countByUser_Id(Long userId);
 
     long countByUser_IdAndFavoriteTrue(Long userId);
+
+    long countByUser_IdAndEmergencyTrue(Long userId);
 
     /** How many contacts the user has in Recently deleted (deleted since {@code cutoff}). */
     @Query(value = """

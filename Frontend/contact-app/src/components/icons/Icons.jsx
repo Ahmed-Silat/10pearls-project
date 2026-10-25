@@ -24,6 +24,7 @@ export {
   FaMagnifyingGlassLocation as LostIcon,
   FaStar as StarIcon,
   FaRegStar as StarOutlineIcon,
+  FaKitMedical as EmergencyIcon,
 } from "react-icons/fa6";
 
 export { FaGoogle as GoogleIcon } from "react-icons/fa";

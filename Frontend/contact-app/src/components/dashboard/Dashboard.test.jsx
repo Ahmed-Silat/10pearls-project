@@ -185,3 +185,50 @@ describe("Favorites page", () => {
     expect(screen.getByRole("link", { name: "Go to all contacts" })).toHaveAttribute("href", "/");
   });
 });
+
+describe("Emergency page", () => {
+  const renderEmergency = () =>
+    render(
+      <MemoryRouter initialEntries={["/emergency"]}>
+        <Dashboard view="emergency" />
+      </MemoryRouter>
+    );
+
+  test("asks only for emergency contacts and says it's the Emergency page", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [contact("c1", "mom")], totalContacts: 1 }));
+    renderEmergency();
+
+    await waitForIdle();
+    expect(getContactsByUserId).toHaveBeenCalledWith("user-1", "", "", 1, 10, "emergency");
+    expect(screen.getByRole("heading", { level: 1, name: "Emergency" })).toBeInTheDocument();
+  });
+
+  test("with no emergency contacts, explains how to add them", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [], totalContacts: 0, totalPages: 0 }));
+    renderEmergency();
+
+    expect(await screen.findByText("No emergency contacts yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to all contacts" })).toHaveAttribute("href", "/");
+  });
+
+  test("a search with no matches says no emergency contacts were found", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [], totalContacts: 0, totalPages: 0 }));
+    render(
+      <MemoryRouter initialEntries={["/emergency?search=zz"]}>
+        <Dashboard view="emergency" />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("No emergency contacts found")).toBeInTheDocument();
+  });
+
+  test("Add Contact here starts with Emergency contact ticked", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [], totalContacts: 0, totalPages: 0 }));
+    renderEmergency();
+    await waitForIdle();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Contact" }));
+
+    expect(screen.getByRole("checkbox", { name: "Emergency contact" })).toBeChecked();
+  });
+});
