@@ -41,6 +41,9 @@ export {
   Ellipsis as EllipsisIcon,
   ListChecks as SelectIcon,
   CircleMinus as RemoveTagIcon,
+  Building2 as CompanyIcon,
+  Cake as BirthdayIcon,
+  StickyNote as NotesIcon,
 } from "lucide-react";
 
 /** A filled star, for starred (favourite) contacts. */

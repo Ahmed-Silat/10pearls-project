@@ -39,8 +39,22 @@ export const checkDuplicates = async ({ phone, email, excludeId }) => {
 };
 
 /**
+ * The richer details a contact can have besides name, phone, email and address: `company`, `birthday`
+ * ("yyyy-mm-dd" or null), `notes`, and `additionalPhones` / `additionalEmails` (lists of `{ label, value }`, label
+ * one of "mobile", "work", "home", "other"). Any of them left out is not sent.
+ */
+const richerDetails = ({ company, birthday, notes, additionalPhones, additionalEmails }) => ({
+  company,
+  birthday,
+  notes,
+  additionalPhones,
+  additionalEmails,
+});
+
+/**
  * `emergency` marks the new contact as an emergency contact and `tagIds` gives it tags. `allowDuplicate` saves
- * even if another contact has the same phone or email ("Save anyway").
+ * even if another contact has the same phone or email ("Save anyway"). The other options are the richer
+ * details described above.
  */
 export const createNewContact = async (
   firstName,
@@ -49,7 +63,7 @@ export const createNewContact = async (
   address,
   phone,
   user_id,
-  { allowDuplicate = false, emergency = false, tagIds = [] } = {}
+  { allowDuplicate = false, emergency = false, tagIds = [], ...details } = {}
 ) => {
   const { data } = await api.post(`/contact`, {
     firstName,
@@ -57,6 +71,7 @@ export const createNewContact = async (
     email,
     phone,
     address,
+    ...richerDetails(details),
     emergency,
     tagIds,
     allowDuplicate,
@@ -72,7 +87,9 @@ export const getContactById = async (contactId) => {
 
 /**
  * `emergency` marks or unmarks it as an emergency contact and `tagIds` replaces its tags; either one left out
- * stays as it is. `allowDuplicate` saves even if another contact has the same phone or email ("Save anyway").
+ * stays as it is, and so do `additionalPhones` and `additionalEmails`. `company`, `birthday` and `notes` are
+ * replaced like the address. `allowDuplicate` saves even if another contact has the same phone or email
+ * ("Save anyway").
  */
 export const updateContact = async (
   contactId,
@@ -81,7 +98,7 @@ export const updateContact = async (
   email,
   phone,
   address,
-  { allowDuplicate = false, emergency, tagIds } = {}
+  { allowDuplicate = false, emergency, tagIds, ...details } = {}
 ) => {
   const { data } = await api.put(`/contact/${contactId}`, {
     firstName,
@@ -89,6 +106,7 @@ export const updateContact = async (
     email,
     phone,
     address,
+    ...richerDetails(details),
     emergency,
     tagIds,
     allowDuplicate,

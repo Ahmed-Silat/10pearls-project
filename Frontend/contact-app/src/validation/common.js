@@ -58,6 +58,10 @@ export const addressField = z
 
 export const optionalAddressField = addressField.or(z.literal(""));
 
+/**
+ * Runs a zod schema and returns the first error message for each field. Errors inside lists are keyed by their
+ * path, e.g. "additionalPhones.1.value" for the second extra phone number.
+ */
 export const validateWith = (schema, values) => {
   const result = schema.safeParse(values);
   if (result.success) {
@@ -65,7 +69,7 @@ export const validateWith = (schema, values) => {
   }
   const errors = {};
   for (const issue of result.error.issues) {
-    const field = issue.path[0];
+    const field = issue.path.join(".");
     if (field && !errors[field]) {
       errors[field] = issue.message;
     }

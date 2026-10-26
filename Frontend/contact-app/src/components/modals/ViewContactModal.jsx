@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -11,28 +12,77 @@ import {
 } from "@/components/ui/dialog";
 import EmptyValue from "../ui/EmptyValue";
 import TagBadge from "../tags/TagBadge";
-import { EmergencyIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon } from "../icons/Icons";
+import {
+  BirthdayIcon,
+  CompanyIcon,
+  EmergencyIcon,
+  MailIcon,
+  NotesIcon,
+  PencilIcon,
+  PhoneIcon,
+  PinIcon,
+} from "../icons/Icons";
+import { DETAIL_LABELS } from "../../validation/createContactSchema";
+import { ageOn, formatBirthday, upcomingBirthdayText } from "../../lib/birthday";
 
-/** Read-only view of a contact, so long names and details can be seen in full. */
+const telHref = (phone) => `tel:${phone.replace(/[^\d+]/g, "")}`;
+const labelText = (label) => DETAIL_LABELS.find((option) => option.value === label)?.label ?? "Other";
+
+/** "14 May 1990 · 36 years old · Birthday in 3 days" (the last part only when it's within a week). */
+const birthdayText = (birthday) => {
+  const age = ageOn(birthday);
+  return [formatBirthday(birthday), age !== null && `${age} years old`, upcomingBirthdayText(birthday)]
+    .filter(Boolean)
+    .join(" · ");
+};
+
+/**
+ * Read-only view of a contact, so long names and details can be seen in full. Phone, email and address are
+ * always listed (N/A when empty); the extra phones and emails, company, birthday and notes only when set.
+ */
 export default function ViewContactModal({ contact, onClose, onEdit }) {
   const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(" ");
   const initials = `${contact.firstName?.[0] || ""}${contact.lastName?.[0] || ""}`.toUpperCase();
 
   const details = [
     {
+      key: "phone",
       label: "Phone",
       Icon: PhoneIcon,
       value: contact.phone,
-      href: contact.phone ? `tel:${contact.phone.replace(/[^\d+]/g, "")}` : null,
+      href: contact.phone ? telHref(contact.phone) : null,
     },
+    ...(contact.additionalPhones ?? []).map((phone, index) => ({
+      key: `phone-${index}`,
+      label: `Phone · ${labelText(phone.label)}`,
+      Icon: PhoneIcon,
+      value: phone.value,
+      href: telHref(phone.value),
+    })),
     {
+      key: "email",
       label: "Email",
       Icon: MailIcon,
       value: contact.email,
       href: contact.email ? `mailto:${contact.email}` : null,
     },
-    { label: "Address", Icon: PinIcon, value: contact.address, href: null },
-  ];
+    ...(contact.additionalEmails ?? []).map((email, index) => ({
+      key: `email-${index}`,
+      label: `Email · ${labelText(email.label)}`,
+      Icon: MailIcon,
+      value: email.value,
+      href: `mailto:${email.value}`,
+    })),
+    contact.company && { key: "company", label: "Company", Icon: CompanyIcon, value: contact.company },
+    contact.birthday && {
+      key: "birthday",
+      label: "Birthday",
+      Icon: BirthdayIcon,
+      value: birthdayText(contact.birthday),
+    },
+    { key: "address", label: "Address", Icon: PinIcon, value: contact.address, href: null },
+    contact.notes && { key: "notes", label: "Notes", Icon: NotesIcon, value: contact.notes, multiline: true },
+  ].filter(Boolean);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -65,12 +115,17 @@ export default function ViewContactModal({ contact, onClose, onEdit }) {
         </DialogHeader>
 
         <dl className="divide-y rounded-md border">
-          {details.map(({ label, Icon, value, href }) => (
-            <div key={label} className="flex items-start gap-3 px-4 py-3">
+          {details.map(({ key, label, Icon, value, href, multiline }) => (
+            <div key={key} className="flex items-start gap-3 px-4 py-3">
               <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="text-sm font-medium [overflow-wrap:anywhere]">
+                <dd
+                  className={cn(
+                    "text-sm font-medium [overflow-wrap:anywhere]",
+                    multiline && "whitespace-pre-wrap font-normal"
+                  )}
+                >
                   {!value ? (
                     <EmptyValue />
                   ) : href ? (

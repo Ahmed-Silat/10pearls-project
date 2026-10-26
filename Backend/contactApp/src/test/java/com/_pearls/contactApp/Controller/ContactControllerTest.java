@@ -145,6 +145,79 @@ class ContactControllerTest {
     }
 
     @Test
+    void createContact_withRicherFields_isAccepted() throws Exception {
+        when(contactService.createContact(eq(1L), any())).thenReturn(sampleContact(10L));
+        String body = """
+                {"firstName":"Alice","phone":"0300 1234567","company":"10Pearls","birthday":"1990-05-14",
+                 "notes":"Met at the conference",
+                 "additionalPhones":[{"label":"work","value":"021 111 2222"}],
+                 "additionalEmails":[{"label":"Home","value":"alice@home.com"}]}""";
+
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated());
+
+        verify(contactService).createContact(eq(1L), org.mockito.ArgumentMatchers.argThat(request ->
+                request.getBirthday().equals(java.time.LocalDate.of(1990, 5, 14))
+                        && request.getAdditionalPhones().getFirst().value().equals("021 111 2222")
+                        && request.getAdditionalEmails().getFirst().label().equals("Home")));
+    }
+
+    @Test
+    void createContact_birthdayInTheFuture_returns400() throws Exception {
+        String body = """
+                {"firstName":"Alice","phone":"0300","birthday":"%s"}""".formatted(java.time.LocalDate.now().plusDays(1));
+
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.birthday").exists());
+
+        verify(contactService, never()).createContact(any(), any());
+    }
+
+    @Test
+    void createContact_birthdayNotADate_returns400() throws Exception {
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Alice\",\"phone\":\"0300\",\"birthday\":\"14/05/1990\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(contactService, never()).createContact(any(), any());
+    }
+
+    @Test
+    void createContact_badOtherPhoneOrEmail_returns400ForThatEntry() throws Exception {
+        String body = """
+                {"firstName":"Alice","phone":"0300",
+                 "additionalPhones":[{"label":"fax","value":"021 111 2222"}],
+                 "additionalEmails":[{"label":"work","value":"not-an-email"}]}""";
+
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors['additionalPhones[0].label']").exists())
+                .andExpect(jsonPath("$.errors['additionalEmails[0].value']").exists());
+
+        verify(contactService, never()).createContact(any(), any());
+    }
+
+    @Test
+    void createContact_moreThanFiveOtherPhones_returns400() throws Exception {
+        String phones = String.join(",", java.util.Collections.nCopies(6, "{\"value\":\"021 111 2222\"}"));
+        String body = "{\"firstName\":\"Alice\",\"phone\":\"0300\",\"additionalPhones\":[" + phones + "]}";
+
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.additionalPhones").exists());
+    }
+
+    @Test
     void createContact_withOnlyFirstNameAndPhone_returns201() throws Exception {
         when(contactService.createContact(eq(1L), any())).thenReturn(sampleContact(10L));
 

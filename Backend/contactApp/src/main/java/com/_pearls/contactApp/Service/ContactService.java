@@ -2,15 +2,19 @@ package com._pearls.contactApp.Service;
 
 import com._pearls.contactApp.Dto.BulkResultDto;
 import com._pearls.contactApp.Dto.ContactCountsDto;
+import com._pearls.contactApp.Dto.ContactDetailDto;
 import com._pearls.contactApp.Dto.ContactDto;
+import com._pearls.contactApp.Dto.EmailEntryRequest;
 import com._pearls.contactApp.Dto.DuplicateMatchDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
+import com._pearls.contactApp.Dto.PhoneEntryRequest;
 import com._pearls.contactApp.Dto.TagSummaryDto;
 import com._pearls.contactApp.ExceptionHandling.BadRequestException;
 import com._pearls.contactApp.ExceptionHandling.DuplicateContactException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
+import com._pearls.contactApp.Model.ContactDetail;
 import com._pearls.contactApp.Model.Tag;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.ContactRepo;
@@ -32,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import static com._pearls.contactApp.Util.TextUtils.normalize;
@@ -130,13 +135,21 @@ public class ContactService {
     public ContactDto createContact(Long userId, ContactRequest request) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
-        rejectDuplicates(userId, NEW_CONTACT, request.getPhone(), request.getEmail(), request.isAllowDuplicate());
+        String phone = trim(request.getPhone());
+        List<ContactDetail> otherPhones = cleanPhones(phone, request.getAdditionalPhones());
+        EmailsToSave emails = cleanEmails(request.getEmail(), request.getAdditionalEmails());
+        rejectDuplicates(userId, NEW_CONTACT, phone, emails.main(), request.isAllowDuplicate());
         Contact contact = Contact.builder()
                 .firstName(normalize(request.getFirstName()))
                 .lastName(normalize(request.getLastName()))
-                .email(normalize(request.getEmail()))
-                .phone(trim(request.getPhone()))
+                .email(emails.main())
+                .phone(phone)
                 .address(trim(request.getAddress()))
+                .company(trimToNull(request.getCompany()))
+                .birthday(request.getBirthday())
+                .notes(trimToNull(request.getNotes()))
+                .additionalPhones(new ArrayList<>(otherPhones))
+                .additionalEmails(new ArrayList<>(emails.others()))
                 .emergency(Boolean.TRUE.equals(request.getEmergency()))
                 .tags(request.getTagIds() == null ? new HashSet<>() : findOwnedTags(userId, request.getTagIds()))
                 .user(user)
@@ -147,12 +160,31 @@ public class ContactService {
     @Transactional
     public ContactDto updateContact(Long id, Long userId, ContactRequest request) {
         Contact contact = findOwnedContact(id, userId);
-        rejectDuplicates(userId, id, request.getPhone(), request.getEmail(), request.isAllowDuplicate());
+        String phone = trim(request.getPhone());
+        // Left out of the request: keep the current extra phones and emails. An empty list removes them all.
+        List<ContactDetail> otherPhones = request.getAdditionalPhones() == null
+                ? null
+                : cleanPhones(phone, request.getAdditionalPhones());
+        EmailsToSave emails = request.getAdditionalEmails() == null
+                ? new EmailsToSave(normalize(request.getEmail()), null)
+                : cleanEmails(request.getEmail(), request.getAdditionalEmails());
+        rejectDuplicates(userId, id, phone, emails.main(), request.isAllowDuplicate());
         contact.setFirstName(normalize(request.getFirstName()));
         contact.setLastName(normalize(request.getLastName()));
-        contact.setEmail(normalize(request.getEmail()));
-        contact.setPhone(trim(request.getPhone()));
+        contact.setEmail(emails.main());
+        contact.setPhone(phone);
         contact.setAddress(trim(request.getAddress()));
+        contact.setCompany(trimToNull(request.getCompany()));
+        contact.setBirthday(request.getBirthday());
+        contact.setNotes(trimToNull(request.getNotes()));
+        if (otherPhones != null) {
+            contact.getAdditionalPhones().clear();
+            contact.getAdditionalPhones().addAll(otherPhones);
+        }
+        if (emails.others() != null) {
+            contact.getAdditionalEmails().clear();
+            contact.getAdditionalEmails().addAll(emails.others());
+        }
         // Left out of the request: keep the current value.
         if (request.getEmergency() != null) {
             contact.setEmergency(request.getEmergency());
@@ -353,6 +385,76 @@ public class ContactService {
         return new HashSet<>(found);
     }
 
+    /** The main email to save, and the other emails (null when the request leaves them out, on an edit). */
+    record EmailsToSave(String main, List<ContactDetail> others) {
+    }
+
+    /**
+     * The extra phone numbers to save: trimmed, labelled ("other" if no label was given), in the order given, and
+     * without blanks or copies of the main number or of each other (compared by digits only).
+     */
+    static List<ContactDetail> cleanPhones(String mainPhone, List<PhoneEntryRequest> entries) {
+        List<ContactDetail> cleaned = new ArrayList<>();
+        if (entries == null) {
+            return cleaned;
+        }
+        Set<String> seen = new HashSet<>();
+        seen.add(digitsOf(mainPhone));
+        for (PhoneEntryRequest entry : entries) {
+            String value = entry == null ? null : trim(entry.value());
+            if (value == null || value.isEmpty() || !seen.add(digitsOf(value))) {
+                continue;
+            }
+            cleaned.add(new ContactDetail(cleanLabel(entry.label()), value));
+        }
+        return cleaned;
+    }
+
+    /**
+     * The main email and the extra ones to save, all trimmed and lower-cased, without blanks or copies (ignoring
+     * case). If the main email is blank, the first extra one takes its place, so a contact with emails always
+     * has a main one for the cards and the duplicate check.
+     */
+    static EmailsToSave cleanEmails(String rawMain, List<EmailEntryRequest> entries) {
+        String main = normalize(rawMain);
+        List<ContactDetail> others = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        if (main != null && !main.isEmpty()) {
+            seen.add(main);
+        }
+        for (EmailEntryRequest entry : entries == null ? List.<EmailEntryRequest>of() : entries) {
+            String value = entry == null ? null : normalize(entry.value());
+            if (value == null || value.isEmpty() || !seen.add(value)) {
+                continue;
+            }
+            others.add(new ContactDetail(cleanLabel(entry.label()), value));
+        }
+        if ((main == null || main.isEmpty()) && !others.isEmpty()) {
+            main = others.removeFirst().getValue();
+        }
+        return new EmailsToSave(main, others);
+    }
+
+    private static String cleanLabel(String label) {
+        return label == null || label.isBlank() ? ContactDetail.LABEL_OTHER : label.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String digitsOf(String phone) {
+        return phone == null ? "" : phone.replaceAll("\\D", "");
+    }
+
+    /** Trims, and turns a blank value into null so empty fields aren't stored as "". */
+    private static String trimToNull(String value) {
+        String trimmed = trim(value);
+        return trimmed == null || trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static List<ContactDetailDto> toDetailDtos(List<ContactDetail> details) {
+        return details == null
+                ? List.of()
+                : details.stream().map(detail -> new ContactDetailDto(detail.getLabel(), detail.getValue())).toList();
+    }
+
     private ContactDto toDto(Contact contact) {
         ContactDto dto = new ContactDto();
         dto.setId(contact.getId());
@@ -361,6 +463,11 @@ public class ContactService {
         dto.setEmail(contact.getEmail());
         dto.setPhone(contact.getPhone());
         dto.setAddress(contact.getAddress());
+        dto.setCompany(contact.getCompany());
+        dto.setBirthday(contact.getBirthday() == null ? null : contact.getBirthday().toString());
+        dto.setNotes(contact.getNotes());
+        dto.setAdditionalPhones(toDetailDtos(contact.getAdditionalPhones()));
+        dto.setAdditionalEmails(toDetailDtos(contact.getAdditionalEmails()));
         dto.setFavorite(contact.isFavorite());
         dto.setEmergency(contact.isEmergency());
         if (contact.getTags() != null) {

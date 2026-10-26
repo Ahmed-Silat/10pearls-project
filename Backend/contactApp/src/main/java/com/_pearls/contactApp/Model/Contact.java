@@ -1,7 +1,9 @@
 package com._pearls.contactApp.Model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -12,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,7 +26,10 @@ import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -65,6 +71,34 @@ public class Contact {
 
     @Column
     private String address;
+
+    @Column(name = "company", length = 100)
+    private String company;
+
+    @Column(name = "birthday")
+    private LocalDate birthday;
+
+    @Column(name = "notes", length = 2000)
+    private String notes;
+
+    /**
+     * Phone numbers besides the main one ({@link #phone}), in the order the user entered them. Like tags, loaded
+     * for a whole page of contacts in one query (BatchSize).
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "contact_phones", joinColumns = @JoinColumn(name = "contact_id"))
+    @OrderColumn(name = "position")
+    @BatchSize(size = 100)
+    @Builder.Default
+    private List<ContactDetail> additionalPhones = new ArrayList<>();
+
+    /** Emails besides the main one ({@link #email}), in the order the user entered them. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "contact_emails", joinColumns = @JoinColumn(name = "contact_id"))
+    @OrderColumn(name = "position")
+    @BatchSize(size = 100)
+    @Builder.Default
+    private List<ContactDetail> additionalEmails = new ArrayList<>();
 
     /** Starred by the user; starred contacts are listed on the Favorites page. */
     @Column(name = "favorite", nullable = false)

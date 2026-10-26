@@ -336,3 +336,63 @@ describe("tags and selecting", () => {
     expect(onSelectedChange).toHaveBeenCalledWith(true);
   });
 });
+
+describe("richer contact fields", () => {
+  const RICH = {
+    company: "10Pearls",
+    birthday: "1990-10-27",
+    notes: "Met at the conference.\nLikes tea.",
+    additionalPhones: [
+      { label: "work", value: "021 111 2222" },
+      { label: "home", value: "042 333 4444" },
+    ],
+    additionalEmails: [{ label: "home", value: "mq@home.com" }],
+  };
+
+  beforeEach(() => {
+    // Only the date is faked, so tooltips and dialogs keep their normal timers.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 26)); // 26 October 2026
+  });
+  afterEach(() => vi.useRealTimers());
+
+  test("the card shows the company under the name, highlighted while searching", () => {
+    const { container } = renderCard({ ...RICH, highlight: "10p" });
+
+    expect(screen.getByTitle("10Pearls")).toHaveTextContent("10Pearls");
+    expect([...container.querySelectorAll("mark")].map((mark) => mark.textContent)).toEqual(["10P"]);
+  });
+
+  test("the card counts the extra phone numbers and emails", () => {
+    renderCard(RICH);
+
+    expect(screen.getByLabelText("2 more phone numbers")).toHaveTextContent("+2");
+    expect(screen.getByLabelText("1 more email")).toHaveTextContent("+1");
+  });
+
+  test("a birthday within the week is mentioned on the card", () => {
+    renderCard(RICH);
+    expect(screen.getByText("Birthday tomorrow")).toBeInTheDocument();
+  });
+
+  test("a contact without the richer details shows none of them", () => {
+    renderCard();
+    expect(screen.queryByText(/^\+\d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/birthday/i)).not.toBeInTheDocument();
+  });
+
+  test("the details list every phone and email, the company, birthday and notes", () => {
+    renderCard(RICH);
+
+    fireEvent.click(screen.getByRole("button", { name: `View ${LONG_NAME}` }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByText("Phone · Work")).toBeInTheDocument();
+    expect(dialog.getByRole("link", { name: "021 111 2222" })).toHaveAttribute("href", "tel:0211112222");
+    expect(dialog.getByText("Phone · Home")).toBeInTheDocument();
+    expect(dialog.getByRole("link", { name: "mq@home.com" })).toHaveAttribute("href", "mailto:mq@home.com");
+    expect(dialog.getByText("10Pearls")).toBeInTheDocument();
+    expect(dialog.getByText("27 October 1990 · 35 years old · Birthday tomorrow")).toBeInTheDocument();
+    expect(dialog.getByText(/Met at the conference\.\s+Likes tea\./)).toBeInTheDocument();
+  });
+});

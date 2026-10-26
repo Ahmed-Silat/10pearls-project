@@ -15,6 +15,13 @@ public class ContactDto {
     private String email;
     private String phone;
     private String address;
+    private String company;
+    /** "yyyy-MM-dd", or null. */
+    private String birthday;
+    private String notes;
+    /** Phone numbers and emails besides the main ones, in the order the user entered them. */
+    private List<ContactDetailDto> additionalPhones = List.of();
+    private List<ContactDetailDto> additionalEmails = List.of();
     private boolean favorite;
     private boolean emergency;
 

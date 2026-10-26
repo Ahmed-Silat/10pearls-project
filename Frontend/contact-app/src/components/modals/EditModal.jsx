@@ -4,29 +4,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import ModalHeader from "./ModalHeader";
-import LabelWithInput from "../label-and-inputs/LabelWithInput";
-import { Label } from "@/components/ui/label";
-import EmergencyField from "./EmergencyField";
-import TagPicker from "../tags/TagPicker";
+import ContactFormFields from "./ContactFormFields";
 import { getDuplicates, updateContact } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
-import { createContactSchema } from "../../validation/createContactSchema";
-import { validateWith } from "../../validation/common";
+import {
+  contactToForm,
+  EMPTY_CONTACT_FORM,
+  richerFields,
+  validateContactForm,
+  withoutErrorsFor,
+} from "./contactForm";
 import { getApiErrorMessage } from "../../service/Constants";
 import Spinner from "../ui/Spinner";
 
 export default function EditModal(props) {
   const [contactId, setContactId] = useState("");
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phoneNo: "",
-    address: "",
-    emergency: false,
-    tagIds: [],
-  });
+  const [form, setForm] = useState(EMPTY_CONTACT_FORM);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,14 +33,11 @@ export default function EditModal(props) {
   );
   const [confirmDuplicates, setConfirmDuplicates] = useState(null);
 
-  const handleChange = (field) => (event) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  const updateField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => withoutErrorsFor(prev, field));
     setConfirmDuplicates(null);
   };
-
-  const handleEmergencyChange = (checked) => setForm((prev) => ({ ...prev, emergency: checked }));
-  const handleTagsChange = (tagIds) => setForm((prev) => ({ ...prev, tagIds }));
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
@@ -56,7 +47,7 @@ export default function EditModal(props) {
   };
 
   const updateCurrentContact = async ({ allowDuplicate = false } = {}) => {
-    const validation = validateWith(createContactSchema, form);
+    const validation = validateContactForm(form);
     if (!validation.success) {
       setErrors(validation.errors);
       return;
@@ -71,7 +62,7 @@ export default function EditModal(props) {
         validation.data.email,
         validation.data.phoneNo,
         validation.data.address,
-        { allowDuplicate, emergency: form.emergency, tagIds: form.tagIds }
+        { allowDuplicate, emergency: form.emergency, tagIds: form.tagIds, ...richerFields(validation.data) }
       );
       toast.success("Contact updated");
       props.getContacts();
@@ -93,15 +84,7 @@ export default function EditModal(props) {
   useEffect(() => {
     if (props.contactData) {
       setContactId(props.contactData.id);
-      setForm({
-        firstName: props.contactData.firstName,
-        lastName: props.contactData.lastName ?? "",
-        email: props.contactData.email ?? "",
-        phoneNo: props.contactData.phone ?? "",
-        address: props.contactData.address ?? "",
-        emergency: Boolean(props.contactData.emergency),
-        tagIds: (props.contactData.tags ?? []).map((tag) => tag.id),
-      });
+      setForm(contactToForm(props.contactData));
     }
   }, [props.contactData]);
 
@@ -125,81 +108,13 @@ export default function EditModal(props) {
                 <p className="text-sm">Loading contact details...</p>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <LabelWithInput
-                  htmlFor="firstName"
-                  labelName="First Name"
-                  inputType="text"
-                  inputId="firstName"
-                  placeholder="Enter first name"
-                  value={form.firstName}
-                  onChange={handleChange("firstName")}
-                  error={errors.firstName}
-                />
-
-                <LabelWithInput
-                  htmlFor="lastName"
-                  labelName="Last Name"
-                  optional
-                  inputType="text"
-                  inputId="lastName"
-                  placeholder="Enter last name"
-                  value={form.lastName}
-                  onChange={handleChange("lastName")}
-                  error={errors.lastName}
-                />
-
-                <LabelWithInput
-                  htmlFor="email"
-                  labelName="Email Address"
-                  optional
-                  inputType="text"
-                  inputId="email"
-                  placeholder="Enter email"
-                  value={form.email}
-                  onChange={handleChange("email")}
-                  onBlur={checkPhoneAndEmail}
-                  error={errors.email}
-                />
-
-                <LabelWithInput
-                  htmlFor="phone"
-                  labelName="Phone No"
-                  inputType="text"
-                  inputId="phone"
-                  placeholder="Enter phone no"
-                  value={form.phoneNo}
-                  onChange={handleChange("phoneNo")}
-                  onBlur={checkPhoneAndEmail}
-                  error={errors.phoneNo}
-                />
-
-                <LabelWithInput
-                  htmlFor="address"
-                  labelName="Address"
-                  optional
-                  inputType="text"
-                  inputId="address"
-                  placeholder="Enter address"
-                  value={form.address}
-                  onChange={handleChange("address")}
-                  error={errors.address}
-                  className="sm:col-span-2"
-                />
-
-                <div className="grid gap-2 sm:col-span-2">
-                  <Label htmlFor="tags">
-                    Tags <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
-                  </Label>
-                  <TagPicker id="tags" value={form.tagIds} onChange={handleTagsChange} disabled={loading} />
-                </div>
-
-                <EmergencyField
-                  checked={form.emergency}
-                  onChange={handleEmergencyChange}
-                  className="sm:col-span-2"
-                />
-              </div>
+              <ContactFormFields
+                form={form}
+                errors={errors}
+                onChange={updateField}
+                onPhoneOrEmailBlur={checkPhoneAndEmail}
+                disabled={loading}
+              />
             )}
             {!isLoadingContact && (
               <DuplicateNotice

@@ -6,24 +6,10 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { createNewContact, getDuplicates } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
-import LabelWithInput from "../label-and-inputs/LabelWithInput";
-import { Label } from "@/components/ui/label";
-import EmergencyField from "./EmergencyField";
-import TagPicker from "../tags/TagPicker";
+import ContactFormFields from "./ContactFormFields";
 import ModalHeader from "./ModalHeader";
-import { createContactSchema } from "../../validation/createContactSchema";
-import { validateWith } from "../../validation/common";
+import { EMPTY_CONTACT_FORM, richerFields, validateContactForm, withoutErrorsFor } from "./contactForm";
 import { getApiErrorMessage } from "../../service/Constants";
-
-const emptyContact = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phoneNo: "",
-  address: "",
-  emergency: false,
-  tagIds: [],
-};
 
 /**
  * `defaultEmergency` starts with "Emergency contact" ticked (used on the Emergency page); `defaultTagIds` starts
@@ -31,7 +17,7 @@ const emptyContact = {
  */
 export default function AddContactModal(props) {
   const [form, setForm] = useState(() => ({
-    ...emptyContact,
+    ...EMPTY_CONTACT_FORM,
     emergency: Boolean(props.defaultEmergency),
     tagIds: props.defaultTagIds ?? [],
   }));
@@ -43,14 +29,11 @@ export default function AddContactModal(props) {
   const [confirmDuplicates, setConfirmDuplicates] = useState(null);
   const userId = props.userId;
 
-  const handleChange = (field) => (event) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  const updateField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => withoutErrorsFor(prev, field));
     setConfirmDuplicates(null);
   };
-
-  const handleEmergencyChange = (checked) => setForm((prev) => ({ ...prev, emergency: checked }));
-  const handleTagsChange = (tagIds) => setForm((prev) => ({ ...prev, tagIds }));
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
@@ -60,7 +43,7 @@ export default function AddContactModal(props) {
   };
 
   const addNewContact = async ({ allowDuplicate = false } = {}) => {
-    const validation = validateWith(createContactSchema, form);
+    const validation = validateContactForm(form);
     if (!validation.success) {
       setErrors(validation.errors);
       return;
@@ -75,7 +58,7 @@ export default function AddContactModal(props) {
         validation.data.address,
         validation.data.phoneNo,
         userId,
-        { allowDuplicate, emergency: form.emergency, tagIds: form.tagIds }
+        { allowDuplicate, emergency: form.emergency, tagIds: form.tagIds, ...richerFields(validation.data) }
       );
       toast.success("Contact added");
       props.fetchContacts();
@@ -104,81 +87,13 @@ export default function AddContactModal(props) {
               description="Fill in the details to save a new contact."
             />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <LabelWithInput
-                htmlFor="firstName"
-                labelName="First Name"
-                inputType="text"
-                inputId="firstName"
-                placeholder="Enter first name"
-                value={form.firstName}
-                onChange={handleChange("firstName")}
-                error={errors.firstName}
-              />
-
-              <LabelWithInput
-                htmlFor="lastName"
-                labelName="Last Name"
-                optional
-                inputType="text"
-                inputId="lastName"
-                placeholder="Enter last name"
-                value={form.lastName}
-                onChange={handleChange("lastName")}
-                error={errors.lastName}
-              />
-
-              <LabelWithInput
-                htmlFor="email"
-                labelName="Email Address"
-                optional
-                inputType="text"
-                inputId="email"
-                placeholder="Enter email"
-                value={form.email}
-                onChange={handleChange("email")}
-                onBlur={checkPhoneAndEmail}
-                error={errors.email}
-              />
-
-              <LabelWithInput
-                htmlFor="phone"
-                labelName="Phone No"
-                inputType="text"
-                inputId="phone"
-                placeholder="Enter phone no"
-                value={form.phoneNo}
-                onChange={handleChange("phoneNo")}
-                onBlur={checkPhoneAndEmail}
-                error={errors.phoneNo}
-              />
-
-              <LabelWithInput
-                htmlFor="address"
-                labelName="Address"
-                optional
-                inputType="text"
-                inputId="address"
-                placeholder="Enter address"
-                value={form.address}
-                onChange={handleChange("address")}
-                error={errors.address}
-                className="sm:col-span-2"
-              />
-
-              <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="tags">
-                  Tags <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
-                </Label>
-                <TagPicker id="tags" value={form.tagIds} onChange={handleTagsChange} disabled={loading} />
-              </div>
-
-              <EmergencyField
-                checked={form.emergency}
-                onChange={handleEmergencyChange}
-                className="sm:col-span-2"
-              />
-            </div>
+            <ContactFormFields
+              form={form}
+              errors={errors}
+              onChange={updateField}
+              onPhoneOrEmailBlur={checkPhoneAndEmail}
+              disabled={loading}
+            />
             <DuplicateNotice
               matches={confirmDuplicates ?? possibleDuplicates}
               confirm={Boolean(confirmDuplicates)}
