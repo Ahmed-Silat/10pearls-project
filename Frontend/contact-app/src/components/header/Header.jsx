@@ -19,9 +19,11 @@ import Spinner from "../ui/Spinner";
 import Hint from "../ui/Hint";
 import ModeToggle from "../theme/ModeToggle";
 import AppSidebar from "../sidebar/Sidebar";
+import { TagsProvider, useTags } from "../tags/TagsProvider";
 
-/** Pages showing a contact list; the header search filters whichever one is open. */
+/** Pages showing a contact list (plus every tag page); the header search filters whichever one is open. */
 const SEARCHABLE_PAGES = ["/", "/favorites", "/emergency"];
+const TAG_PAGE = /^\/tags\/(\d+)$/;
 
 /** The current page's name in the top bar breadcrumb. */
 const PAGE_TITLES = {
@@ -68,9 +70,17 @@ function SearchBox({ inputRef, value, onChange, onKeyDown, onClear }) {
 
 /**
  * The signed-in layout (shadcn/ui dashboard shell): the sidebar, a slim top bar with the sidebar toggle,
- * breadcrumb, search and theme toggle, and the current page below.
+ * breadcrumb, search and theme toggle, and the current page below. Loads the user's tags for all of it.
  */
 export default function Header() {
+  return (
+    <TagsProvider>
+      <AppLayout />
+    </TagsProvider>
+  );
+}
+
+function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchOpenMobile, setSearchOpenMobile] = useState(false);
@@ -81,9 +91,13 @@ export default function Header() {
   const search = searchParams.get("search") || "";
   const [searchInput, setSearchInput] = useState(search);
 
+  const { tags } = useTags();
+  const tagMatch = location.pathname.match(TAG_PAGE);
+  const currentTag = tagMatch && tags.find((tag) => tag.id === Number(tagMatch[1]));
+
   // Search filters the contact list, so it only appears on the list pages.
-  const showSearch = SEARCHABLE_PAGES.includes(location.pathname);
-  const pageTitle = PAGE_TITLES[location.pathname] ?? "ContactHub";
+  const showSearch = SEARCHABLE_PAGES.includes(location.pathname) || Boolean(tagMatch);
+  const pageTitle = tagMatch ? currentTag?.name ?? "Tag" : PAGE_TITLES[location.pathname] ?? "ContactHub";
 
   const [loggingOut, setLoggingOut] = useState(false);
   const logoutTimerRef = useRef(null);

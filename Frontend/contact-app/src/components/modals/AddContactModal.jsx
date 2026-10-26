@@ -7,7 +7,9 @@ import { createNewContact, getDuplicates } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import { Label } from "@/components/ui/label";
 import EmergencyField from "./EmergencyField";
+import TagPicker from "../tags/TagPicker";
 import ModalHeader from "./ModalHeader";
 import { createContactSchema } from "../../validation/createContactSchema";
 import { validateWith } from "../../validation/common";
@@ -20,11 +22,19 @@ const emptyContact = {
   phoneNo: "",
   address: "",
   emergency: false,
+  tagIds: [],
 };
 
-/** `defaultEmergency` starts with "Emergency contact" ticked (used on the Emergency page). */
+/**
+ * `defaultEmergency` starts with "Emergency contact" ticked (used on the Emergency page); `defaultTagIds` starts
+ * with those tags picked (used on a tag's page).
+ */
 export default function AddContactModal(props) {
-  const [form, setForm] = useState(() => ({ ...emptyContact, emergency: Boolean(props.defaultEmergency) }));
+  const [form, setForm] = useState(() => ({
+    ...emptyContact,
+    emergency: Boolean(props.defaultEmergency),
+    tagIds: props.defaultTagIds ?? [],
+  }));
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,6 +50,7 @@ export default function AddContactModal(props) {
   };
 
   const handleEmergencyChange = (checked) => setForm((prev) => ({ ...prev, emergency: checked }));
+  const handleTagsChange = (tagIds) => setForm((prev) => ({ ...prev, tagIds }));
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
@@ -64,7 +75,7 @@ export default function AddContactModal(props) {
         validation.data.address,
         validation.data.phoneNo,
         userId,
-        { allowDuplicate, emergency: form.emergency }
+        { allowDuplicate, emergency: form.emergency, tagIds: form.tagIds }
       );
       toast.success("Contact added");
       props.fetchContacts();
@@ -154,6 +165,13 @@ export default function AddContactModal(props) {
                 error={errors.address}
                 className="sm:col-span-2"
               />
+
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="tags">
+                  Tags <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <TagPicker id="tags" value={form.tagIds} onChange={handleTagsChange} disabled={loading} />
+              </div>
 
               <EmergencyField
                 checked={form.emergency}

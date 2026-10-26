@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import ContactCard from "./ContactCard";
 import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 
@@ -296,5 +297,42 @@ describe("emergency contacts", () => {
     renderCard({ emergency: true });
     fireEvent.click(screen.getByRole("button", { name: `View ${LONG_NAME}` }));
     expect(within(screen.getByRole("dialog")).getByText("Emergency contact")).toBeInTheDocument();
+  });
+});
+
+describe("tags and selecting", () => {
+  const renderInRouter = (overrides = {}) =>
+    render(
+      <MemoryRouter>
+        <ContactCard
+          contactId="c1"
+          firstName="ali"
+          lastName="khan"
+          phone="0300-1234567"
+          email=""
+          address=""
+          fetchContacts={vi.fn()}
+          {...overrides}
+        />
+      </MemoryRouter>
+    );
+
+  test("shows the contact's tags as links to each tag's page", () => {
+    renderInRouter({ tags: [{ id: 4, name: "Family", color: "green" }] });
+    expect(screen.getByRole("link", { name: "Show contacts tagged Family" })).toHaveAttribute("href", "/tags/4");
+  });
+
+  test("has no checkbox until the dashboard is selecting", () => {
+    renderInRouter();
+    expect(screen.queryByRole("checkbox", { name: "Select ali khan" })).not.toBeInTheDocument();
+  });
+
+  test("while selecting, ticking the checkbox reports it", () => {
+    const onSelectedChange = vi.fn();
+    renderInRouter({ selectable: true, selected: false, onSelectedChange });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select ali khan" }));
+
+    expect(onSelectedChange).toHaveBeenCalledWith(true);
   });
 });

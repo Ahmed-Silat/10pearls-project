@@ -1,6 +1,7 @@
 package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Config.AuthUser;
+import com._pearls.contactApp.Dto.BulkResultDto;
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.DuplicateMatchDto;
@@ -93,7 +94,7 @@ class ContactControllerTest {
         page.setContactsPerPage(10);
         page.setCurrentPage(1);
 
-        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("all"))).thenReturn(page);
+        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("all"), eq(0L))).thenReturn(page);
 
         mockMvc.perform(asUser(get("/contact/user/{id}", 1L), 1L))
                 .andExpect(status().isOk())
@@ -111,7 +112,7 @@ class ContactControllerTest {
         mockMvc.perform(asUser(get("/contact/user/{id}", 2L), 1L))
                 .andExpect(status().isForbidden());
 
-        verify(contactService, never()).getContactsByUserId(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), any());
+        verify(contactService, never()).getContactsByUserId(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), any(), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -262,13 +263,13 @@ class ContactControllerTest {
 
     @Test
     void getContactsByUserId_passesTheFilterThrough() throws Exception {
-        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("favorites")))
+        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("favorites"), eq(0L)))
                 .thenReturn(new PaginationDto<>());
 
         mockMvc.perform(asUser(get("/contact/user/{id}", 1L).param("filter", "favorites"), 1L))
                 .andExpect(status().isOk());
 
-        verify(contactService).getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("favorites"));
+        verify(contactService).getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("favorites"), eq(0L));
     }
 
     @Test
@@ -314,5 +315,88 @@ class ContactControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(contactService, never()).setEmergency(any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+    @Test
+    void getContactsByUserId_passesTheTagFilterThrough() throws Exception {
+        when(contactService.getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("all"), eq(7L)))
+                .thenReturn(new PaginationDto<>());
+
+        mockMvc.perform(asUser(get("/contact/user/{id}", 1L).param("tag", "7"), 1L))
+                .andExpect(status().isOk());
+
+        verify(contactService).getContactsByUserId(eq(1L), any(), any(), eq(1), eq(10), eq("all"), eq(7L));
+    }
+
+    @Test
+    void bulkDelete_returnsHowManyWereMoved() throws Exception {
+        when(contactService.bulkDelete(1L, List.of(10L, 11L))).thenReturn(new BulkResultDto(2));
+
+        mockMvc.perform(asUser(post("/contact/bulk-delete"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[10,11]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count", org.hamcrest.Matchers.is(2)));
+    }
+
+    @Test
+    void bulkDelete_withNoIds_returns400() throws Exception {
+        mockMvc.perform(asUser(post("/contact/bulk-delete"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[]}"))
+                .andExpect(status().isBadRequest());
+
+        verify(contactService, never()).bulkDelete(any(), any());
+    }
+
+    @Test
+    void bulkTag_addsTheTag() throws Exception {
+        when(contactService.bulkTag(1L, List.of(10L, 11L), 5L, true)).thenReturn(new BulkResultDto(2));
+
+        mockMvc.perform(asUser(post("/contact/bulk-tag"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[10,11],\"tagId\":5,\"action\":\"add\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count", org.hamcrest.Matchers.is(2)));
+    }
+
+    @Test
+    void bulkTag_removesTheTag() throws Exception {
+        when(contactService.bulkTag(1L, List.of(10L), 5L, false)).thenReturn(new BulkResultDto(1));
+
+        mockMvc.perform(asUser(post("/contact/bulk-tag"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[10],\"tagId\":5,\"action\":\"REMOVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count", org.hamcrest.Matchers.is(1)));
+    }
+
+    @Test
+    void bulkTag_withUnknownAction_returns400() throws Exception {
+        mockMvc.perform(asUser(post("/contact/bulk-tag"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[10],\"tagId\":5,\"action\":\"toggle\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(contactService, never()).bulkTag(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void bulkTag_withoutTag_returns400() throws Exception {
+        mockMvc.perform(asUser(post("/contact/bulk-tag"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[10],\"action\":\"ADD\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createContact_withTooManyTags_returns400() throws Exception {
+        String ids = java.util.stream.LongStream.rangeClosed(1, 21).mapToObj(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
+        mockMvc.perform(asUser(post("/contact"), 1L)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Alice\",\"phone\":\"0300\",\"tagIds\":[" + ids + "]}"))
+                .andExpect(status().isBadRequest());
+
+        verify(contactService, never()).createContact(any(), any());
     }
 }

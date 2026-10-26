@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   EmergencyIcon,
@@ -21,6 +22,7 @@ import ViewContactModal from "../modals/ViewContactModal";
 import EmptyValue from "../ui/EmptyValue";
 import Highlight from "../ui/Highlight";
 import Hint from "../ui/Hint";
+import TagBadge from "../tags/TagBadge";
 import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
 
@@ -115,6 +117,7 @@ const ContactCard = (props) => {
 
   // Emergency outranks the star for the outline colour, as it's the more urgent one to spot.
   const borderColor = isEmergency ? "border-red-500/50" : isFavorite ? "border-amber-400/60" : "";
+  const tags = props.tags ?? [];
 
   /** One line of contact details: a muted icon and the value (or N/A). */
   const detail = (Icon, value) => (
@@ -127,8 +130,25 @@ const ContactCard = (props) => {
   );
 
   return (
-    <Card data-contact-card className={cn("flex flex-col transition-colors hover:bg-accent/30", borderColor)}>
+    <Card
+      data-contact-card
+      data-selected={props.selected || undefined}
+      className={cn(
+        "flex flex-col transition-colors hover:bg-accent/30",
+        borderColor,
+        props.selected && "bg-accent/40 ring-2 ring-ring"
+      )}
+    >
       <CardHeader className="flex-row items-center gap-3 space-y-0 p-4">
+        {/* Shown while selecting contacts for bulk actions (the dashboard's "Select"). */}
+        {props.selectable && (
+          <Checkbox
+            checked={Boolean(props.selected)}
+            onCheckedChange={(checked) => props.onSelectedChange?.(checked === true)}
+            aria-label={`Select ${fullName}`}
+            className="flex-shrink-0"
+          />
+        )}
         <div className="relative flex-shrink-0">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">{initials}</AvatarFallback>
@@ -188,6 +208,13 @@ const ContactCard = (props) => {
         {detail(PhoneIcon, props.phone)}
         {detail(MailIcon, props.email)}
         {detail(PinIcon, props.address)}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5" aria-label="Tags">
+            {tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} link />
+            ))}
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="justify-between gap-2 border-t px-2 py-2">

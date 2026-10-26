@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import EmptyValue from "../ui/EmptyValue";
+import TagBadge from "../tags/TagBadge";
 import { EmergencyIcon, MailIcon, PencilIcon, PhoneIcon, PinIcon } from "../icons/Icons";
 
 /** Read-only view of a contact, so long names and details can be seen in full. */
@@ -53,6 +54,13 @@ export default function ViewContactModal({ contact, onClose, onEdit }) {
               <EmergencyIcon className="h-3 w-3" />
               Emergency contact
             </Badge>
+          )}
+          {contact.tags?.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-1" aria-label="Tags">
+              {contact.tags.map((tag) => (
+                <TagBadge key={tag.id} tag={tag} />
+              ))}
+            </div>
           )}
         </DialogHeader>
 

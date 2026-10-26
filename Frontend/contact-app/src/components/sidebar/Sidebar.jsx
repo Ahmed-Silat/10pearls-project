@@ -35,6 +35,7 @@ import {
   UsersIcon,
 } from "../icons/Icons";
 import { CONTACTS_CHANGED_EVENT, getContactCounts } from "../../service/ContactService";
+import SidebarTags from "../tags/SidebarTags";
 
 /**
  * The contact sections. `count` is the key in the counts response. Recently deleted sits in its own group.
@@ -190,8 +191,8 @@ function NavUser({ onSignOut }) {
 }
 
 /**
- * The app's sidebar (shadcn/ui Sidebar block): brand, the contact sections with their counts, Recently deleted,
- * and the account menu at the bottom. Collapses to icons on desktop; on phones it opens as a slide-in sheet.
+ * The app's sidebar (shadcn/ui Sidebar block): brand, the contact sections with their counts, the user's tags,
+ * Recently deleted, and the account menu at the bottom. Collapses to icons on desktop; on phones it opens as a slide-in sheet.
  */
 export default function AppSidebar({ onSignOut }) {
   const counts = useContactCounts();
@@ -229,6 +230,7 @@ export default function AppSidebar({ onSignOut }) {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+          <SidebarTags />
           <SidebarGroup>
             <SidebarGroupLabel>Manage</SidebarGroupLabel>
             <SidebarGroupContent>

@@ -3,6 +3,8 @@ package com._pearls.contactApp.Dto;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 /** Public contact representation returned by the API - never exposes the owning user entity. */
 @Getter
 @Setter
@@ -15,6 +17,9 @@ public class ContactDto {
     private String address;
     private boolean favorite;
     private boolean emergency;
+
+    /** Sorted by name. */
+    private List<TagSummaryDto> tags = List.of();
 
     /** Only for contacts in Recently deleted: when it was deleted, and when it will be deleted for good. */
     private String deletedAt;

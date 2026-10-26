@@ -7,6 +7,7 @@ import ForgotPassword from "./components/login-signup/ForgotPassword";
 import PrivateRoutes from "./routes/PrivateRoutes";
 import PublicOnlyRoutes from "./routes/PublicOnlyRoutes";
 import Dashboard from "./components/dashboard/Dashboard";
+import TagPage from "./components/dashboard/TagPage";
 import UserProfile from "./components/user-profile/UserProfile";
 import Header from "./components/header/Header";
 import NotFound from "./components/not-found/NotFound";
@@ -29,6 +30,7 @@ function App() {
               <Route path="/" element={<Dashboard key="all" view="all" />} />
               <Route path="/favorites" element={<Dashboard key="favorites" view="favorites" />} />
               <Route path="/emergency" element={<Dashboard key="emergency" view="emergency" />} />
+              <Route path="/tags/:tagId" element={<TagPage />} />
               <Route path="/user-profile" element={<UserProfile />} />
               <Route path="/recently-deleted" element={<RecentlyDeleted />} />
             </Route>

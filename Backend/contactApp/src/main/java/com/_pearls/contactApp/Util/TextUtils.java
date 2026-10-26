@@ -13,6 +13,11 @@ public final class TextUtils {
         return value == null ? null : value.trim();
     }
 
+    /** Trims and turns runs of spaces inside into one ("  Close   friends " becomes "Close friends"). */
+    public static String collapseSpaces(String value) {
+        return value == null ? null : value.trim().replaceAll("\\s+", " ");
+    }
+
     /** Trims and lower-cases a value so names and emails are stored consistently. */
     public static String normalize(String value) {
         return value == null ? null : value.trim().toLowerCase(Locale.ROOT);

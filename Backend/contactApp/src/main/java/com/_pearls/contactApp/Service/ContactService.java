@@ -1,15 +1,20 @@
 package com._pearls.contactApp.Service;
 
+import com._pearls.contactApp.Dto.BulkResultDto;
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.DuplicateMatchDto;
 import com._pearls.contactApp.Dto.ContactRequest;
 import com._pearls.contactApp.Dto.PaginationDto;
+import com._pearls.contactApp.Dto.TagSummaryDto;
+import com._pearls.contactApp.ExceptionHandling.BadRequestException;
 import com._pearls.contactApp.ExceptionHandling.DuplicateContactException;
 import com._pearls.contactApp.ExceptionHandling.ResourceNotFoundException;
 import com._pearls.contactApp.Model.Contact;
+import com._pearls.contactApp.Model.Tag;
 import com._pearls.contactApp.Model.User;
 import com._pearls.contactApp.Repo.ContactRepo;
+import com._pearls.contactApp.Repo.TagRepo;
 import com._pearls.contactApp.Repo.UserRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com._pearls.contactApp.Util.TextUtils.normalize;
 import static com._pearls.contactApp.Util.TextUtils.trim;
@@ -36,6 +44,7 @@ public class ContactService {
 
     private final ContactRepo contactRepo;
     private final UserRepo userRepo;
+    private final TagRepo tagRepo;
 
     private static final String SORT_AZ = "A-Z";
     private static final String SORT_ZA = "Z-A";
@@ -51,6 +60,7 @@ public class ContactService {
 
     static final int RECENTLY_DELETED_PAGE_SIZE = 20;
     static final String NO_LONGER_RESTORABLE = "This contact is no longer in Recently deleted";
+    static final String UNKNOWN_TAG = "Unknown tag";
 
     /** Used as "no contact to exclude" when checking a new contact for duplicates; real ids start at 1. */
     private static final long NEW_CONTACT = 0L;
@@ -58,11 +68,11 @@ public class ContactService {
     /**
      * One page of the user's contacts. {@code filter} picks the sidebar section: {@value #FILTER_FAVORITES} for
      * starred contacts only, {@value #FILTER_EMERGENCY} for emergency contacts only, anything else (normally "all")
-     * for every contact.
+     * for every contact. {@code tagId} other than 0 limits it to contacts with that tag (a tag page in the sidebar).
      */
     @Transactional(readOnly = true)
     public PaginationDto<ContactDto> getContactsByUserId(Long userId, String search, String sortBy, int page, int size,
-                                                         String filter) {
+                                                         String filter, long tagId) {
         boolean favoritesOnly = FILTER_FAVORITES.equalsIgnoreCase(filter);
         boolean emergencyOnly = FILTER_EMERGENCY.equalsIgnoreCase(filter);
         // Out-of-range values are clamped rather than rejected: a huge size would load every contact at once,
@@ -87,9 +97,9 @@ public class ContactService {
                     .replace("\\", "\\\\")
                     .replace("%", "\\%")
                     .replace("_", "\\_");
-            result = contactRepo.searchByUserId(userId, escaped + "%", favoritesOnly, emergencyOnly, pageable);
+            result = contactRepo.searchByUserId(userId, escaped + "%", favoritesOnly, emergencyOnly, tagId, pageable);
         } else {
-            result = contactRepo.findForUser(userId, favoritesOnly, emergencyOnly, pageable);
+            result = contactRepo.findForUser(userId, favoritesOnly, emergencyOnly, tagId, pageable);
         }
 
         PaginationDto<ContactDto> dto = new PaginationDto<>();
@@ -128,6 +138,7 @@ public class ContactService {
                 .phone(trim(request.getPhone()))
                 .address(trim(request.getAddress()))
                 .emergency(Boolean.TRUE.equals(request.getEmergency()))
+                .tags(request.getTagIds() == null ? new HashSet<>() : findOwnedTags(userId, request.getTagIds()))
                 .user(user)
                 .build();
         return toDto(contactRepo.save(contact));
@@ -145,6 +156,12 @@ public class ContactService {
         // Left out of the request: keep the current value.
         if (request.getEmergency() != null) {
             contact.setEmergency(request.getEmergency());
+        }
+        // Left out: keep the current tags. An empty list removes them all.
+        if (request.getTagIds() != null) {
+            Set<Tag> tags = findOwnedTags(userId, request.getTagIds());
+            contact.getTags().clear();
+            contact.getTags().addAll(tags);
         }
         return toDto(contactRepo.save(contact));
     }
@@ -174,6 +191,42 @@ public class ContactService {
         Contact contact = findOwnedContact(id, userId);
         contact.setDeletedAt(Instant.now());
         contactRepo.save(contact);
+    }
+
+    /**
+     * Moves many of the user's contacts to Recently deleted at once, like {@link #deleteContact} for each. Ids that
+     * don't exist, belong to someone else or are already deleted are skipped. Returns how many were moved.
+     */
+    @Transactional
+    public BulkResultDto bulkDelete(Long userId, List<Long> ids) {
+        List<Contact> contacts = contactRepo.findByUser_IdAndIdIn(userId, Set.copyOf(ids));
+        Instant now = Instant.now();
+        contacts.forEach(contact -> contact.setDeletedAt(now));
+        contactRepo.saveAll(contacts);
+        log.info("User {} moved {} contact(s) to Recently deleted", userId, contacts.size());
+        return new BulkResultDto(contacts.size());
+    }
+
+    /**
+     * Adds one of the user's tags to many contacts, or removes it from them. 404 if the tag isn't the user's.
+     * Contacts that aren't the user's (or are deleted) are skipped, and so are contacts that already have the tag
+     * (adding), don't have it (removing) or already have the most tags allowed (adding). Returns how many changed.
+     */
+    @Transactional
+    public BulkResultDto bulkTag(Long userId, List<Long> ids, Long tagId, boolean add) {
+        Tag tag = tagRepo.findByIdAndUser_Id(tagId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found with id " + tagId));
+        long changed = 0;
+        for (Contact contact : contactRepo.findByUser_IdAndIdIn(userId, Set.copyOf(ids))) {
+            Set<Tag> tags = contact.getTags();
+            boolean didChange = add
+                    ? tags.size() < ContactRequest.MAX_TAGS && tags.add(tag)
+                    : tags.remove(tag);
+            if (didChange) {
+                changed++;
+            }
+        }
+        return new BulkResultDto(changed);
     }
 
     /** The user's Recently deleted list, most recently deleted first. */
@@ -284,6 +337,22 @@ public class ContactService {
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id " + id));
     }
 
+    /** The user's tags with these ids; 400 if any id isn't one of their tags. */
+    private Set<Tag> findOwnedTags(Long userId, List<Long> tagIds) {
+        if (tagIds.isEmpty()) {
+            return new HashSet<>();
+        }
+        Set<Long> wanted = new HashSet<>(tagIds);
+        if (wanted.contains(null)) {
+            throw new BadRequestException(UNKNOWN_TAG);
+        }
+        List<Tag> found = tagRepo.findByUser_IdAndIdIn(userId, wanted);
+        if (found.size() != wanted.size()) {
+            throw new BadRequestException(UNKNOWN_TAG);
+        }
+        return new HashSet<>(found);
+    }
+
     private ContactDto toDto(Contact contact) {
         ContactDto dto = new ContactDto();
         dto.setId(contact.getId());
@@ -294,6 +363,12 @@ public class ContactService {
         dto.setAddress(contact.getAddress());
         dto.setFavorite(contact.isFavorite());
         dto.setEmergency(contact.isEmergency());
+        if (contact.getTags() != null) {
+            dto.setTags(contact.getTags().stream()
+                    .sorted(Comparator.comparing(Tag::getName, String.CASE_INSENSITIVE_ORDER))
+                    .map(tag -> new TagSummaryDto(tag.getId(), tag.getName(), tag.getColor()))
+                    .toList());
+        }
         if (contact.getDeletedAt() != null) {
             dto.setDeletedAt(contact.getDeletedAt().toString());
             dto.setDeletesPermanentlyAt(contact.getDeletedAt().plus(RETENTION).toString());
