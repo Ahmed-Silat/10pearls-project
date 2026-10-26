@@ -1,19 +1,12 @@
-import "@testing-library/jest-dom";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import Sidebar from "./Sidebar";
 import { CONTACTS_CHANGED_EVENT, getContactCounts } from "../../service/ContactService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API calls are mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/ContactService", () => ({
-  ...jest.requireActual("../../service/ContactService"),
-  getContactCounts: jest.fn(),
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getContactCounts: vi.fn(),
 }));
 
 afterEach(() => getContactCounts.mockReset());
@@ -21,23 +14,26 @@ afterEach(() => getContactCounts.mockReset());
 const renderAt = (path) =>
   render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar />
+      <SidebarProvider>
+        <Sidebar onSignOut={() => {}} />
+      </SidebarProvider>
     </MemoryRouter>
   );
 
 const link = (name) => screen.getByRole("link", { name: new RegExp(`^${name}`) });
+const count = (key) => screen.getByTestId(`count-${key}`);
 
 test("links to every section with its count", async () => {
   getContactCounts.mockResolvedValue({ all: 24, favorites: 5, emergency: 2, recentlyDeleted: 3 });
   renderAt("/");
 
-  await waitFor(() => expect(within(link("All contacts")).getByText("24")).toBeInTheDocument());
+  await waitFor(() => expect(count("all")).toHaveTextContent("24"));
   expect(link("All contacts")).toHaveAttribute("href", "/");
-  expect(within(link("Favorites")).getByText("5")).toBeInTheDocument();
+  expect(count("favorites")).toHaveTextContent("5");
   expect(link("Favorites")).toHaveAttribute("href", "/favorites");
-  expect(within(link("Emergency")).getByText("2")).toBeInTheDocument();
+  expect(count("emergency")).toHaveTextContent("2");
   expect(link("Emergency")).toHaveAttribute("href", "/emergency");
-  expect(within(link("Recently deleted")).getByText("3")).toBeInTheDocument();
+  expect(count("recentlyDeleted")).toHaveTextContent("3");
   expect(link("Recently deleted")).toHaveAttribute("href", "/recently-deleted");
 });
 
@@ -54,13 +50,13 @@ test("refreshes the counts when contacts change", async () => {
     .mockResolvedValueOnce({ all: 2, favorites: 0, recentlyDeleted: 0 })
     .mockResolvedValueOnce({ all: 2, favorites: 1, recentlyDeleted: 0 });
   renderAt("/");
-  await waitFor(() => expect(within(link("Favorites")).getByText("0")).toBeInTheDocument());
+  await waitFor(() => expect(count("favorites")).toHaveTextContent("0"));
 
   act(() => {
     window.dispatchEvent(new Event(CONTACTS_CHANGED_EVENT));
   });
 
-  await waitFor(() => expect(within(link("Favorites")).getByText("1")).toBeInTheDocument());
+  await waitFor(() => expect(count("favorites")).toHaveTextContent("1"));
 });
 
 test("still shows the links if the counts can't be loaded", async () => {

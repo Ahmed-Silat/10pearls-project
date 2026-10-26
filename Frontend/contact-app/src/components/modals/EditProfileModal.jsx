@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import Modal from "../ui/Modal";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import ModalHeader from "./ModalHeader";
 import { updateUser } from "../../service/authService";
 import { getApiErrorMessage } from "../../service/Constants";
-import { PencilIcon } from "../icons/Icons";
 import { updateUserSchema } from "../../validation/updateUserSchema";
 import { validateWith } from "../../validation/common";
-import Button from "../button/Button";
 
 export default function EditProfileModal(props) {
   const [form, setForm] = useState({
@@ -83,25 +84,16 @@ export default function EditProfileModal(props) {
   };
 
   return (
-    <Modal onClose={close} titleId="edit-profile-title" panelClassName="sm:max-w-xl">
-      <form onSubmit={updateProfile} noValidate>
-        <fieldset disabled={loading} className="min-w-0">
-          <div className="px-6 pt-6">
-            <div className="flex items-center gap-4">
-              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                <PencilIcon className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 id="edit-profile-title" className="text-lg font-semibold text-slate-900">
-                  Edit Profile
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Update your personal details.
-                </p>
-              </div>
-            </div>
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-xl">
+        <form onSubmit={updateProfile} noValidate>
+          <fieldset disabled={loading} className="grid min-w-0 gap-4">
+            <ModalHeader
+              title="Edit Profile"
+              description="Update your personal details."
+            />
 
-            <div className="mt-4 grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <LabelWithInput
                 htmlFor="firstName"
                 labelName="First Name"
@@ -175,28 +167,22 @@ export default function EditProfileModal(props) {
               )}
             </div>
             {serverError && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-          </div>
 
-          <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-            <Button
-              type="submit"
-              name={loading ? "Updating..." : "Update"}
-              loading={loading}
-              className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
-            />
-            <button
-              type="button"
-              data-autofocus
-              onClick={close}
-              className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              Cancel
-            </button>
-          </div>
-        </fieldset>
-      </form>
-    </Modal>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" data-autofocus onClick={close}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={loading}>
+                {loading ? "Updating..." : "Update"}
+              </Button>
+            </DialogFooter>
+          </fieldset>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

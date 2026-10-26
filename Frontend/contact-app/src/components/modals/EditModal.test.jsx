@@ -1,19 +1,11 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import EditModal from "./EditModal";
 import { checkDuplicates, updateContact } from "../../service/ContactService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API calls are mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/ContactService", () => ({
-  ...jest.requireActual("../../service/ContactService"),
-  updateContact: jest.fn(),
-  checkDuplicates: jest.fn(),
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  updateContact: vi.fn(),
+  checkDuplicates: vi.fn(),
 }));
 
 test("the duplicate check leaves out the contact being edited", async () => {
@@ -21,8 +13,8 @@ test("the duplicate check leaves out the contact being edited", async () => {
   render(
     <EditModal
       contactData={{ id: 7, firstName: "zed", phone: "0300 1234567", email: "zed@example.com" }}
-      onClose={jest.fn()}
-      getContacts={jest.fn()}
+      onClose={vi.fn()}
+      getContacts={vi.fn()}
     />
   );
 
@@ -41,8 +33,8 @@ test("shows whether it's an emergency contact, and saves the change", async () =
   render(
     <EditModal
       contactData={{ id: 7, firstName: "mom", phone: "0300 1234567", emergency: true }}
-      onClose={jest.fn()}
-      getContacts={jest.fn()}
+      onClose={vi.fn()}
+      getContacts={vi.fn()}
     />
   );
   const checkbox = screen.getByRole("checkbox", { name: "Emergency contact" });

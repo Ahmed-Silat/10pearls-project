@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import Modal from "../ui/Modal";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { createNewContact, getDuplicates } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import EmergencyField from "./EmergencyField";
-import { PlusIcon } from "../icons/Icons";
+import ModalHeader from "./ModalHeader";
 import { createContactSchema } from "../../validation/createContactSchema";
 import { validateWith } from "../../validation/common";
 import { getApiErrorMessage } from "../../service/Constants";
-import Button from "../button/Button";
 
 const emptyContact = {
   firstName: "",
@@ -83,25 +84,16 @@ export default function AddContactModal(props) {
   };
 
   return (
-    <Modal onClose={close} titleId="add-contact-title" panelClassName="sm:max-w-xl">
-      <form onSubmit={submit} noValidate>
-        <fieldset disabled={loading} className="min-w-0">
-          <div className="px-6 pt-6">
-            <div className="flex items-center gap-4">
-              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                <PlusIcon className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 id="add-contact-title" className="text-lg font-semibold text-slate-900">
-                  Add Contact
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Fill in the details to save a new contact.
-                </p>
-              </div>
-            </div>
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-xl">
+        <form onSubmit={submit} noValidate>
+          <fieldset disabled={loading} className="grid min-w-0 gap-4">
+            <ModalHeader
+              title="Add Contact"
+              description="Fill in the details to save a new contact."
+            />
 
-            <div className="mt-4 grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <LabelWithInput
                 htmlFor="firstName"
                 labelName="First Name"
@@ -174,48 +166,39 @@ export default function AddContactModal(props) {
               confirm={Boolean(confirmDuplicates)}
             />
             {serverError && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-          </div>
 
-          <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-            {confirmDuplicates ? (
-              <>
-                <Button
-                  name={loading ? "Adding..." : "Save anyway"}
-                  loading={loading}
-                  onClick={() => addNewContact({ allowDuplicate: true })}
-                  className="w-full bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 sm:w-auto"
-                />
-                <button
-                  type="button"
-                  onClick={() => setConfirmDuplicates(null)}
-                  className="mt-0 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  Go back
-                </button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="submit"
-                  name={loading ? "Adding..." : "Add Contact"}
-                  loading={loading}
-                  className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
-                />
-                <button
-                  type="button"
-                  data-autofocus
-                  onClick={close}
-                  className="mt-0 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-        </fieldset>
-      </form>
-    </Modal>
+            <DialogFooter className="gap-2 sm:gap-0">
+              {confirmDuplicates ? (
+                <>
+                  <Button variant="outline" onClick={() => setConfirmDuplicates(null)}>
+                    Go back
+                  </Button>
+                  <Button
+                    variant="warning"
+                    loading={loading}
+                    onClick={() => addNewContact({ allowDuplicate: true })}
+                  >
+                    {loading ? "Adding..." : "Save anyway"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" data-autofocus onClick={close}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" loading={loading}>
+                    {loading ? "Adding..." : "Add Contact"}
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </fieldset>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,11 +1,13 @@
-import Button from "../button/Button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import AuthLayout from "./AuthLayout";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { useState } from "react";
 import { toast } from "sonner";
 import { signup } from "../../service/authService";
 import { useNavigate } from "react-router-dom";
-import { UsersIcon } from "../icons/Icons";
 import { signupSchema } from "../../validation/SignupSchema";
 import { validateWith } from "../../validation/common";
 import { getApiErrorMessage } from "../../service/Constants";
@@ -81,23 +83,9 @@ export default function SignUp() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50 to-slate-200 p-4">
-      <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl md:min-h-[640px]">
-        <div className="hidden w-1/2 flex-col justify-center bg-gradient-to-br from-sky-600 to-cyan-700 p-12 text-white md:flex">
-          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-            <UsersIcon className="h-8 w-8" />
-          </div>
-          <h2 className="text-3xl font-bold leading-tight">
-            Join us and gather
-            <br />
-            all your contacts.
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-sky-100">
-            Create an account to start building your personal address book.
-          </p>
-        </div>
-
-        <div className="w-full bg-white p-8 md:w-1/2 md:overflow-y-auto sm:p-10">
+    <AuthLayout>
+      <Card className="w-full max-w-lg">
+        <CardHeader>
           <HeadingAndText
             mainHeading="Signup"
             prompt="Already have an account?"
@@ -105,60 +93,47 @@ export default function SignUp() {
             pageName="Login"
             disabled={loading}
           />
-
+        </CardHeader>
+        <CardContent>
           <form onSubmit={sendSignupData} noValidate>
-            <fieldset disabled={loading} className="min-w-0">
-              <div className="sm:flex sm:gap-3">
-                <div className="sm:w-1/2">
-                  <LabelWithInput
-                    htmlFor="firstName"
-                    labelName="First Name"
-                    inputType="text"
-                    inputId="firstName"
-                    placeholder="Enter first name"
-                    onChange={handleFirstNameChange}
-                    error={errors.firstName}
-                  />
-                </div>
-                <div className="sm:w-1/2">
-                  <LabelWithInput
-                    htmlFor="lastName"
-                    labelName="Last Name"
-                    inputType="text"
-                    inputId="lastName"
-                    placeholder="Enter last name"
-                    onChange={handleLastNameChange}
-                    error={errors.lastName}
-                  />
-                </div>
-              </div>
-
-              <div className="sm:flex sm:gap-3">
-                <div className="sm:w-1/2">
-                  <LabelWithInput
-                    htmlFor="email"
-                    labelName="Email Address"
-                    inputType="text"
-                    inputId="email"
-                    placeholder="Enter your email"
-                    onChange={handleEmailChange}
-                    error={errors.email}
-                  />
-                </div>
-                <div className="sm:w-1/2">
-                  <LabelWithInput
-                    htmlFor="phone"
-                    labelName="Phone No"
-                    inputType="text"
-                    inputId="phone"
-                    placeholder="Enter phone no"
-                    onChange={handlePhoneNoChange}
-                    error={errors.phoneNo}
-                    optional
-                  />
-                </div>
-              </div>
-
+            <fieldset disabled={loading} className="grid min-w-0 gap-4 sm:grid-cols-2">
+              <LabelWithInput
+                htmlFor="firstName"
+                labelName="First Name"
+                inputType="text"
+                inputId="firstName"
+                placeholder="Enter first name"
+                onChange={handleFirstNameChange}
+                error={errors.firstName}
+              />
+              <LabelWithInput
+                htmlFor="lastName"
+                labelName="Last Name"
+                inputType="text"
+                inputId="lastName"
+                placeholder="Enter last name"
+                onChange={handleLastNameChange}
+                error={errors.lastName}
+              />
+              <LabelWithInput
+                htmlFor="email"
+                labelName="Email Address"
+                inputType="text"
+                inputId="email"
+                placeholder="m@example.com"
+                onChange={handleEmailChange}
+                error={errors.email}
+              />
+              <LabelWithInput
+                htmlFor="phone"
+                labelName="Phone No"
+                inputType="text"
+                inputId="phone"
+                placeholder="Enter phone no"
+                onChange={handlePhoneNoChange}
+                error={errors.phoneNo}
+                optional
+              />
               <LabelWithInput
                 htmlFor="address"
                 labelName="Address"
@@ -168,46 +143,39 @@ export default function SignUp() {
                 onChange={handleAddressChange}
                 error={errors.address}
                 optional
+                className="sm:col-span-2"
+              />
+              <LabelWithInput
+                htmlFor="password"
+                labelName="Password"
+                inputType="password"
+                inputId="password"
+                placeholder="Enter password"
+                onChange={handlePasswordChange}
+                error={errors.password}
+              />
+              <LabelWithInput
+                htmlFor="confirmPassword"
+                labelName="Confirm Password"
+                inputType="password"
+                inputId="confirmPassword"
+                placeholder="Confirm password"
+                onChange={handleRePasswordChange}
+                error={errors.rePassword}
               />
 
-              <div className="sm:flex sm:gap-3">
-                <div className="sm:w-1/2">
-                  <LabelWithInput
-                    htmlFor="password"
-                    labelName="Password"
-                    inputType="password"
-                    inputId="password"
-                    placeholder="Enter password"
-                    onChange={handlePasswordChange}
-                    error={errors.password}
-                  />
-                </div>
-                <div className="sm:w-1/2">
-                  <LabelWithInput
-                    htmlFor="confirmPassword"
-                    labelName="Confirm Password"
-                    inputType="password"
-                    inputId="confirmPassword"
-                    placeholder="Confirm password"
-                    onChange={handleRePasswordChange}
-                    error={errors.rePassword}
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                name={loading ? "SIGNING UP..." : "SIGNUP"}
-                loading={loading}
-                className="mt-2 w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
-              />
+              <Button type="submit" loading={loading} className="w-full sm:col-span-2">
+                {loading ? "Signing up..." : "Sign up"}
+              </Button>
             </fieldset>
             {serverError && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+              <Alert variant="destructive" className="mt-4">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
           </form>
-        </div>
-      </div>
-    </div>
+        </CardContent>
+      </Card>
+    </AuthLayout>
   );
 }

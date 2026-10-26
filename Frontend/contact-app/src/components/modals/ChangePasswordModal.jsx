@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import Modal from "../ui/Modal";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import ModalHeader from "./ModalHeader";
 import { changePassword } from "../../service/ContactService";
-import { LockIcon } from "../icons/Icons";
 import { changePasswordSchema } from "../../validation/ChangePasswordSchema";
 import { validateWith } from "../../validation/common";
 import { getApiErrorMessage } from "../../service/Constants";
-import Button from "../button/Button";
 
 export default function ChangePasswordModal(props) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -69,25 +70,16 @@ export default function ChangePasswordModal(props) {
   };
 
   return (
-    <Modal onClose={close} titleId="change-password-title" panelClassName="sm:max-w-md">
-      <form onSubmit={changeCurrentPassword} noValidate>
-        <fieldset disabled={loading} className="min-w-0">
-          <div className="px-6 pt-6">
-            <div className="flex items-center gap-4">
-              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                <LockIcon className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 id="change-password-title" className="text-lg font-semibold text-slate-900">
-                  Change Password
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Choose a strong, unique password.
-                </p>
-              </div>
-            </div>
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={changeCurrentPassword} noValidate>
+          <fieldset disabled={loading} className="grid min-w-0 gap-4">
+            <ModalHeader
+              title="Change Password"
+              description="Choose a strong, unique password."
+            />
 
-            <div className="mt-4">
+            <div className="grid gap-4">
               <LabelWithInput
                 htmlFor="currentPassword"
                 labelName="Current Password"
@@ -122,28 +114,22 @@ export default function ChangePasswordModal(props) {
               />
             </div>
             {serverError && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-          </div>
 
-          <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-            <Button
-              type="submit"
-              name={loading ? "Saving..." : "Save"}
-              loading={loading}
-              className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
-            />
-            <button
-              type="button"
-              data-autofocus
-              onClick={close}
-              className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              Cancel
-            </button>
-          </div>
-        </fieldset>
-      </form>
-    </Modal>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" data-autofocus onClick={close}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={loading}>
+                {loading ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </fieldset>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import Button from "../button/Button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import AuthLayout from "./AuthLayout";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
-import { LockIcon } from "../icons/Icons";
+import { cn } from "@/lib/utils";
 import {
   forgotPassword,
   resetPassword,
@@ -24,9 +27,6 @@ const STEPS = [
   { title: "Enter Code", subtitle: null },
   { title: "New Password", subtitle: "Choose a strong password you haven't used before." },
 ];
-
-const primaryButtonClass =
-  "w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -138,78 +138,62 @@ export default function ForgotPassword() {
   const { title, subtitle } = STEPS[step];
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50 to-slate-200 p-4">
-      <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl md:min-h-[560px]">
-        <div className="hidden w-1/2 flex-col justify-center bg-gradient-to-br from-sky-600 to-cyan-700 p-12 text-white md:flex">
-          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-            <LockIcon className="h-7 w-7" />
-          </div>
-          <h2 className="text-3xl font-bold leading-tight">
-            Locked out?
-            <br />
-            We&apos;ll get you back in.
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-sky-100">
-            We&apos;ll email you a one-time code. Enter it here and choose a new
-            password. The code expires after 10 minutes.
-          </p>
-        </div>
-
-        <div className="flex w-full flex-col justify-center p-8 md:w-1/2 sm:p-12">
+    <AuthLayout>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="space-y-4">
           {/* Step indicator */}
-          <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
+          <ol className="flex items-center gap-2" aria-label="Progress">
             {STEPS.map((s, index) => (
               <li
                 key={s.title}
                 aria-current={index === step ? "step" : undefined}
-                className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                  index <= step ? "bg-sky-600" : "bg-slate-200"
-                }`}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full transition-colors duration-300",
+                  index <= step ? "bg-primary" : "bg-muted"
+                )}
               />
             ))}
           </ol>
 
-          <div className="mb-6">
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{title}</h1>
-            <p className="mt-1.5 text-sm text-slate-500">
+          <div className="grid gap-1.5">
+            <h1 className="text-xl font-semibold leading-none tracking-tight">{title}</h1>
+            <p className="text-sm text-muted-foreground">
               {step === 1 ? (
                 <>
-                  If an account exists for{" "}
-                  <span className="font-semibold text-slate-700">{email}</span>, we&apos;ve
-                  sent it a 6-digit code.
+                  If an account exists for <span className="font-medium text-foreground">{email}</span>,
+                  we&apos;ve sent it a 6-digit code.
                 </>
               ) : (
                 subtitle
               )}
             </p>
           </div>
+        </CardHeader>
 
+        <CardContent className="grid gap-4">
           {step === 0 && (
             <form onSubmit={sendCode} noValidate>
-              <fieldset disabled={submitting} className="min-w-0">
+              <fieldset disabled={submitting} className="grid min-w-0 gap-4">
                 <LabelWithInput
                   htmlFor="email"
                   labelName="Email Address"
                   inputType="text"
                   inputId="email"
-                  placeholder="Enter your email"
+                  placeholder="m@example.com"
                   value={email}
                   onChange={handleChange("email", setEmail)}
                   error={errors.email}
                 />
-                <Button
-                  type="submit"
-                  name={submitting ? "Sending..." : "Send code"}
-                  loading={submitting}
-                  className={primaryButtonClass}
-                />
+                <Button type="submit" loading={submitting} className="w-full">
+                  {submitting ? "Sending..." : "Send code"}
+                </Button>
               </fieldset>
             </form>
           )}
 
           {step === 1 && (
             <form onSubmit={checkCode} noValidate>
-              <fieldset disabled={submitting} className="min-w-0">
+              <fieldset disabled={submitting} className="grid min-w-0 gap-4">
                 <LabelWithInput
                   htmlFor="otp"
                   labelName="6-digit code"
@@ -220,28 +204,20 @@ export default function ForgotPassword() {
                   onChange={handleOtpChange}
                   error={errors.otp}
                 />
-                <Button
-                  type="submit"
-                  name={submitting ? "Checking..." : "Verify code"}
-                  loading={submitting}
-                  className={primaryButtonClass}
-                />
-                <div className="mt-4 flex items-center justify-between text-sm">
-                  <button
-                    type="button"
+                <Button type="submit" loading={submitting} className="w-full">
+                  {submitting ? "Checking..." : "Verify code"}
+                </Button>
+                <div className="flex items-center justify-between text-sm">
+                  <Button
+                    variant="link"
                     onClick={startOver}
-                    className="font-medium text-slate-500 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
                   >
                     Use a different email
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resendCode}
-                    disabled={resendIn > 0}
-                    className="font-semibold text-sky-600 transition-colors hover:text-sky-700 disabled:cursor-not-allowed disabled:text-slate-400"
-                  >
+                  </Button>
+                  <Button variant="link" onClick={resendCode} disabled={resendIn > 0} className="h-auto p-0">
                     {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
-                  </button>
+                  </Button>
                 </div>
               </fieldset>
             </form>
@@ -249,7 +225,7 @@ export default function ForgotPassword() {
 
           {step === 2 && (
             <form onSubmit={saveNewPassword} noValidate>
-              <fieldset disabled={submitting} className="min-w-0">
+              <fieldset disabled={submitting} className="grid min-w-0 gap-4">
                 <LabelWithInput
                   htmlFor="newPassword"
                   labelName="New Password"
@@ -270,31 +246,27 @@ export default function ForgotPassword() {
                   onChange={handleChange("confirmPassword", setConfirmPassword)}
                   error={errors.confirmPassword}
                 />
-                <Button
-                  type="submit"
-                  name={submitting ? "Saving..." : "Reset password"}
-                  loading={submitting}
-                  className={primaryButtonClass}
-                />
+                <Button type="submit" loading={submitting} className="w-full">
+                  {submitting ? "Saving..." : "Reset password"}
+                </Button>
               </fieldset>
             </form>
           )}
 
           {serverError && (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+            <Alert variant="destructive">
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
           )}
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="text-center text-sm text-muted-foreground">
             Remembered it?{" "}
-            <Link
-              to="/login"
-              className="font-semibold text-sky-600 transition-colors duration-200 hover:text-sky-700 hover:underline"
-            >
-              Back to login
-            </Link>
+            <Button asChild variant="link" className="h-auto p-0">
+              <Link to="/login">Back to login</Link>
+            </Button>
           </p>
-        </div>
-      </div>
-    </div>
+        </CardContent>
+      </Card>
+    </AuthLayout>
   );
 }

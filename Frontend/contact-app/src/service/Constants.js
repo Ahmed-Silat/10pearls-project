@@ -1,7 +1,7 @@
 import axios from "axios";
 
-/** Set REACT_APP_API_URL in the project-root .env (e.g. for a deployed backend); defaults to local dev. */
-export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+/** Set VITE_API_URL in the project-root .env (e.g. for a deployed backend); defaults to local dev. */
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 /** sessionStorage key set when the user is logged out because their session expired. */
 export const SESSION_EXPIRED_KEY = "sessionExpired";

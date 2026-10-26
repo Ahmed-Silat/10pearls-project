@@ -1,3 +1,5 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 const FIELD_LABELS = { phone: "phone number", email: "email" };
 
 /**
@@ -25,23 +27,25 @@ export const describeDuplicates = (matches) => {
  * Amber box naming the contacts that already have this phone number or email. With `confirm`, it also asks
  * whether to save anyway (the modal swaps its buttons for "Save anyway" / "Go back").
  */
-export default function DuplicateNotice({ matches, confirm = false }) {
+export default function DuplicateNotice({ matches, confirm = false, className }) {
   if (!matches?.length) return null;
   const lines = describeDuplicates(matches);
   return (
-    <div
-      role={confirm ? "alert" : "status"}
-      className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800 ring-1 ring-amber-200"
-    >
-      <p className="font-semibold">{confirm ? "This looks like a duplicate" : "Possible duplicate"}</p>
-      <ul className="mt-1 space-y-0.5">
-        {lines.map(({ id, name, sameWhat }) => (
-          <li key={id}>
-            <span className="font-semibold capitalize">{name}</span> already has the same {sameWhat}.
-          </li>
-        ))}
-      </ul>
-      {confirm && <p className="mt-1.5">Save it anyway?</p>}
-    </div>
+    // A warning while typing is only announced politely; the "Save anyway?" question interrupts.
+    <Alert variant="warning" role={confirm ? "alert" : "status"} className={className}>
+      <AlertTitle>
+        {confirm ? "This looks like a duplicate" : "Possible duplicate"}
+      </AlertTitle>
+      <AlertDescription>
+        <ul className="mt-1 space-y-0.5">
+          {lines.map(({ id, name, sameWhat }) => (
+            <li key={id}>
+              <span className="font-medium capitalize">{name}</span> already has the same {sameWhat}.
+            </li>
+          ))}
+        </ul>
+        {confirm && <p className="mt-1.5">Save it anyway?</p>}
+      </AlertDescription>
+    </Alert>
   );
 }

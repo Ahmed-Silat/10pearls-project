@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import Button from "../button/Button";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getContactsByUserId } from "../../service/ContactService";
 import ContactCard from "../ContactCard/ContactCard";
 import AddContactModal from "../modals/AddContactModal";
@@ -10,7 +19,6 @@ import Pagination from "../pagination/Pagination";
 import Spinner from "../ui/Spinner";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "../../service/Constants";
-import Dropdown from "../ui/Dropdown";
 import { EmergencyIcon, PlusIcon, SortAZIcon, SortZAIcon, StarIcon, UsersIcon } from "../icons/Icons";
 
 /** How long typing must pause before searching: short enough to feel instant, long enough to skip most keystrokes. */
@@ -40,7 +48,6 @@ const VIEWS = {
     empty: {
       title: "No favorites yet",
       text: "Tap the star on a contact to add it here, so the people you need most are one click away.",
-      iconClassName: "bg-amber-50 text-amber-300",
     },
   },
   emergency: {
@@ -50,8 +57,7 @@ const VIEWS = {
     Icon: EmergencyIcon,
     empty: {
       title: "No emergency contacts yet",
-      text: "Tap the first-aid button on a contact, or tick \"Emergency contact\" when adding one, so the people to call in a crisis are one click away.",
-      iconClassName: "bg-red-50 text-red-300",
+      text: "Tap the siren button on a contact, or tick \"Emergency contact\" when adding one, so the people to call in a crisis are one click away.",
     },
   },
 };
@@ -195,122 +201,128 @@ export default function Dashboard({ view = "all" }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /** The dashed "nothing here" box shared by the empty and no-results states. */
+  const emptyState = (Icon, title, text, action) => (
+    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-6 w-6 text-muted-foreground" />
+      </span>
+      <h2 className="mt-4 text-lg font-semibold">{title}</h2>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{text}</p>
+      {action && <div className="mt-6">{action}</div>}
+    </div>
+  );
+
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {section.title}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">{section.subtitle}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{section.title}</h1>
+          <p className="text-sm text-muted-foreground">{section.subtitle}</p>
         </div>
 
         {/* Stacked full-width on phones, side by side from the "sm" breakpoint up. */}
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <Dropdown
-            label="Sort contacts"
-            prefix="Sort:"
-            menuTitle="Sort by"
-            value={sortOrder}
-            options={SORT_OPTIONS}
-            onChange={handleSortChange}
-            className="w-full sm:w-56"
-          />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Select value={sortOrder} onValueChange={handleSortChange}>
+            <SelectTrigger aria-label="Sort contacts" className="w-full sm:w-[200px]">
+              {/* Kept inline so "Sort: Name (A–Z)" stays on one line (the trigger clamps it to one line). */}
+              <span className="min-w-0 flex-1 text-left">
+                <span className="mr-1 text-muted-foreground">Sort:</span>
+                <SelectValue />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel className="text-xs font-medium text-muted-foreground">Sort by</SelectLabel>
+                {SORT_OPTIONS.map(({ value, label, icon: Icon }) => (
+                  <SelectItem key={value} value={value}>
+                    <span className="inline-flex items-center gap-2 align-middle">
+                      <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      {label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
 
-          <Button
-            name="Add Contact"
-            onClick={openAddContactModal}
-            image={<PlusIcon className="h-4 w-4" />}
-            className="h-10 w-full flex-shrink-0 bg-sky-600 px-4 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700 sm:w-auto"
-          />
+          <Button onClick={openAddContactModal} className="w-full flex-shrink-0 sm:w-auto">
+            <PlusIcon />
+            Add Contact
+          </Button>
         </div>
       </div>
 
-      {/* Full-page loader: covers everything below the header, so the search box stays usable. */}
-      {isBusy && (
-        <div
-          role="status"
-          className="fixed inset-x-0 bottom-0 top-16 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px] md:left-60"
-        >
-          <span className="inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-4 text-sm font-semibold text-sky-700 shadow-xl ring-1 ring-slate-200">
-            <Spinner className="h-5 w-5" />
-            {loadingLabel}
-          </span>
-        </div>
-      )}
-
-      {/* Measured by useCardsPerPage to work out how many cards fit below this point. */}
-      <div ref={gridRef} className="mt-8">
-        {contact.length > 0 ? (
+      {/* The loader covers just the list, so the header, search box and sidebar stay usable. */}
+      <div className="relative mt-6">
+        {isBusy && (
           <div
-            aria-busy={isBusy}
-            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+            role="status"
+            className="absolute inset-0 z-10 flex min-h-[200px] items-start justify-center bg-background/60 pt-24 backdrop-blur-[1px]"
           >
-            {contact.map((value) => (
-              <ContactCard
-                key={value.id}
-                firstName={value.firstName}
-                lastName={value.lastName}
-                phone={value.phone}
-                email={value.email}
-                address={value.address}
-                favorite={value.favorite}
-                emergency={value.emergency}
-                highlight={debouncedSearchTerm}
-                userId={currentUser.id}
-                fetchContacts={loadContacts}
-                contactId={value.id}
-              />
-            ))}
-          </div>
-        ) : isBusy ? (
-          // Nothing loaded yet: keep the space empty under the loader rather than flashing "No contacts".
-          <div className="py-20" />
-        ) : search ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <EmptyIcon className="h-8 w-8 text-slate-400" />
+            <span className="inline-flex items-center gap-2 rounded-md border bg-popover px-4 py-2 text-sm font-medium text-popover-foreground shadow-md">
+              <Spinner className="h-4 w-4 text-primary" />
+              {loadingLabel}
             </span>
-            <h2 className="mt-4 text-lg font-semibold text-slate-700">No {section.noun} found</h2>
-            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
-              No {section.noun} match &ldquo;{search}&rdquo;. Try a different name, email or phone number.
-            </p>
-          </div>
-        ) : section.empty ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
-            <span
-              className={`flex h-16 w-16 items-center justify-center rounded-full ${section.empty.iconClassName}`}
-            >
-              <EmptyIcon className="h-8 w-8" />
-            </span>
-            <h2 className="mt-4 text-lg font-semibold text-slate-700">{section.empty.title}</h2>
-            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">{section.empty.text}</p>
-            <Link
-              to="/"
-              className="mt-6 inline-flex items-center rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 transition-colors hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
-            >
-              Go to all contacts
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <UsersIcon className="h-8 w-8 text-slate-400" />
-            </span>
-            <h2 className="mt-4 text-lg font-semibold text-slate-700">
-              No contacts yet
-            </h2>
-            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
-              Get started by adding your first contact to your address book.
-            </p>
-            <Button
-              name="Add your first contact"
-              onClick={openAddContactModal}
-              image={<PlusIcon className="h-4 w-4" />}
-              className="mt-6 bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
-            />
           </div>
         )}
+
+        {/* Measured by useCardsPerPage to work out how many cards fit below this point. */}
+        <div ref={gridRef}>
+          {contact.length > 0 ? (
+            <div
+              aria-busy={isBusy}
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+            >
+              {contact.map((value) => (
+                <ContactCard
+                  key={value.id}
+                  firstName={value.firstName}
+                  lastName={value.lastName}
+                  phone={value.phone}
+                  email={value.email}
+                  address={value.address}
+                  favorite={value.favorite}
+                  emergency={value.emergency}
+                  highlight={debouncedSearchTerm}
+                  userId={currentUser.id}
+                  fetchContacts={loadContacts}
+                  contactId={value.id}
+                />
+              ))}
+            </div>
+          ) : isBusy ? (
+            // Nothing loaded yet: keep the space empty under the loader rather than flashing "No contacts".
+            <div className="min-h-[360px]" />
+          ) : search ? (
+            emptyState(
+              EmptyIcon,
+              `No ${section.noun} found`,
+              <>
+                No {section.noun} match &ldquo;{search}&rdquo;. Try a different name, email or phone number.
+              </>
+            )
+          ) : section.empty ? (
+            emptyState(
+              EmptyIcon,
+              section.empty.title,
+              section.empty.text,
+              <Button asChild variant="outline">
+                <Link to="/">Go to all contacts</Link>
+              </Button>
+            )
+          ) : (
+            emptyState(
+              UsersIcon,
+              "No contacts yet",
+              "Get started by adding your first contact to your address book.",
+              <Button onClick={openAddContactModal}>
+                <PlusIcon />
+                Add your first contact
+              </Button>
+            )
+          )}
+        </div>
       </div>
 
       {isAddContactModalOpen && (

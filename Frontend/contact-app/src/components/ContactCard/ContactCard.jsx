@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   EmergencyIcon,
   EyeIcon,
@@ -16,7 +20,7 @@ import EditModal from "../modals/EditModal";
 import ViewContactModal from "../modals/ViewContactModal";
 import EmptyValue from "../ui/EmptyValue";
 import Highlight from "../ui/Highlight";
-import Spinner from "../ui/Spinner";
+import Hint from "../ui/Hint";
 import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
 
@@ -110,151 +114,130 @@ const ContactCard = (props) => {
   };
 
   // Emergency outranks the star for the outline colour, as it's the more urgent one to spot.
-  const ringColor = isEmergency ? "ring-red-300" : isFavorite ? "ring-amber-300" : "ring-slate-200/70";
+  const borderColor = isEmergency ? "border-red-500/50" : isFavorite ? "border-amber-400/60" : "";
+
+  /** One line of contact details: a muted icon and the value (or N/A). */
+  const detail = (Icon, value) => (
+    <p className="flex min-w-0 items-center gap-3">
+      <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+      <span className="truncate">
+        {value ? <Highlight text={value} query={props.highlight} /> : <EmptyValue />}
+      </span>
+    </p>
+  );
 
   return (
-    <div
-      data-contact-card
-      className={`group my-2 flex flex-col rounded-2xl bg-white shadow-card ring-1 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${ringColor}`}
-    >
-      <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-sky-50 to-cyan-50 p-5">
-        <span className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-cyan-600 text-base font-bold text-white shadow-md shadow-sky-600/30">
-          {initials}
+    <Card data-contact-card className={cn("flex flex-col transition-colors hover:bg-accent/30", borderColor)}>
+      <CardHeader className="flex-row items-center gap-3 space-y-0 p-4">
+        <div className="relative flex-shrink-0">
+          <Avatar className="h-10 w-10">
+            <AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">{initials}</AvatarFallback>
+          </Avatar>
           {/* A badge on the avatar rather than a label, so emergency cards are the same height as the rest. */}
           {isEmergency && (
-            <span
-              role="img"
-              aria-label="Emergency contact"
-              title="Emergency contact"
-              className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white ring-2 ring-white"
-            >
-              <EmergencyIcon className="h-2.5 w-2.5" />
-            </span>
+            <Hint label="Emergency contact">
+              <span
+                role="img"
+                aria-label="Emergency contact"
+                className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white ring-2 ring-card"
+              >
+                <EmergencyIcon className="h-2.5 w-2.5" />
+              </span>
+            </Hint>
           )}
-        </span>
+        </div>
         {/* The name gets the full width; clicking it opens the details, hovering shows it in full. */}
         <h2 className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={openViewModal}
-            title={fullName}
-            className="block w-full truncate rounded text-left text-lg font-bold capitalize text-slate-900 transition-colors hover:text-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-          >
-            <Highlight text={props.firstName} query={props.highlight} />
-            {props.lastName && (
-              <>
-                {" "}
-                <Highlight text={props.lastName} query={props.highlight} />
-              </>
-            )}
-          </button>
+          <Hint label={fullName} align="start">
+            <button
+              type="button"
+              onClick={openViewModal}
+              className="block w-full truncate rounded-sm text-left text-base font-semibold capitalize leading-tight hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Highlight text={props.firstName} query={props.highlight} />
+              {props.lastName && (
+                <>
+                  {" "}
+                  <Highlight text={props.lastName} query={props.highlight} />
+                </>
+              )}
+            </button>
+          </Hint>
         </h2>
-        <button
-          type="button"
-          onClick={toggleFavorite}
-          disabled={isSavingFavorite}
-          aria-pressed={isFavorite}
-          aria-busy={isSavingFavorite || undefined}
-          aria-label={favoriteLabel}
-          title={
-            isSavingFavorite ? "Saving..." : isFavorite ? "Remove from favorites" : "Add to favorites"
-          }
-          className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:cursor-wait ${
-            isFavorite || isSavingFavorite
-              ? "text-amber-400 hover:bg-amber-100/60 hover:text-amber-500"
-              : "text-slate-400 hover:bg-white hover:text-amber-400"
-          }`}
-        >
-          {isSavingFavorite ? (
-            <Spinner className="h-5 w-5" />
-          ) : isFavorite ? (
-            <StarIcon className="h-5 w-5" />
-          ) : (
-            <StarOutlineIcon className="h-5 w-5" />
-          )}
-        </button>
-      </div>
+        <Hint label={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleFavorite}
+            loading={isSavingFavorite}
+            aria-pressed={isFavorite}
+            aria-label={favoriteLabel}
+            className={cn(
+              "h-8 w-8 flex-shrink-0",
+              isFavorite || isSavingFavorite
+                ? "text-amber-400 hover:text-amber-500"
+                : "text-muted-foreground hover:text-amber-400"
+            )}
+          >
+            {isFavorite ? <StarIcon /> : <StarOutlineIcon />}
+          </Button>
+        </Hint>
+      </CardHeader>
 
-      <div className="flex flex-1 flex-col gap-3 p-5 text-sm text-slate-600">
-        <p className="flex items-center gap-3 min-w-0">
-          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-            <PhoneIcon className="h-4 w-4" />
-          </span>
-          <span className="truncate">
-            {props.phone ? <Highlight text={props.phone} query={props.highlight} /> : <EmptyValue />}
-          </span>
-        </p>
-        <p className="flex items-center gap-3 min-w-0">
-          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-            <MailIcon className="h-4 w-4" />
-          </span>
-          <span className="truncate">
-            {props.email ? <Highlight text={props.email} query={props.highlight} /> : <EmptyValue />}
-          </span>
-        </p>
-        <p className="flex items-center gap-3 min-w-0">
-          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-            <PinIcon className="h-4 w-4" />
-          </span>
-          <span className="truncate">
-            {props.address ? <Highlight text={props.address} query={props.highlight} /> : <EmptyValue />}
-          </span>
-        </p>
-      </div>
+      <CardContent className="flex flex-1 flex-col gap-2.5 px-4 pb-4 pt-0 text-sm">
+        {detail(PhoneIcon, props.phone)}
+        {detail(MailIcon, props.email)}
+        {detail(PinIcon, props.address)}
+      </CardContent>
 
-      <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
-        <button
-          type="button"
-          onClick={openViewModal}
-          aria-label={`View ${fullName}`}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-        >
-          <EyeIcon className="h-4 w-4" />
+      <CardFooter className="justify-between gap-2 border-t px-2 py-2">
+        <Button variant="ghost" size="sm" onClick={openViewModal} aria-label={`View ${fullName}`}>
+          <EyeIcon />
           View details
-        </button>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={toggleEmergency}
-            disabled={isSavingEmergency}
-            aria-pressed={isEmergency}
-            aria-busy={isSavingEmergency || undefined}
-            aria-label={emergencyLabel}
-            title={
-              isSavingEmergency
-                ? "Saving..."
-                : isEmergency
-                  ? "Remove from emergency contacts"
-                  : "Mark as emergency contact"
-            }
-            className={`rounded-lg p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-wait ${
-              isEmergency || isSavingEmergency
-                ? "text-red-500 hover:bg-red-100 hover:text-red-600"
-                : "text-slate-400 hover:bg-red-50 hover:text-red-500"
-            }`}
-          >
-            {isSavingEmergency ? <Spinner className="h-4 w-4" /> : <EmergencyIcon className="h-4 w-4" />}
-          </button>
-          <button
-            type="button"
-            onClick={openEditModal}
-            aria-label={`Edit ${fullName}`}
-            title="Edit"
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-sky-100 hover:text-sky-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-          >
-            <PencilIcon className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={openDeleteModal}
-            aria-label={`Delete ${fullName}`}
-            title="Delete"
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </button>
+        </Button>
+        <div className="flex items-center">
+          <Hint label={isEmergency ? "Remove from emergency contacts" : "Mark as emergency contact"}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleEmergency}
+              loading={isSavingEmergency}
+              aria-pressed={isEmergency}
+              aria-label={emergencyLabel}
+              className={cn(
+                "h-8 w-8",
+                isEmergency || isSavingEmergency
+                  ? "text-red-500 hover:text-red-600 dark:text-red-400"
+                  : "text-muted-foreground hover:text-red-500"
+              )}
+            >
+              <EmergencyIcon />
+            </Button>
+          </Hint>
+          <Hint label="Edit">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openEditModal}
+              aria-label={`Edit ${fullName}`}
+              className="h-8 w-8 text-muted-foreground"
+            >
+              <PencilIcon />
+            </Button>
+          </Hint>
+          <Hint label="Delete">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openDeleteModal}
+              aria-label={`Delete ${fullName}`}
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            >
+              <TrashIcon />
+            </Button>
+          </Hint>
         </div>
-      </div>
+      </CardFooter>
 
       {isViewModalOpen && (
         <ViewContactModal
@@ -282,7 +265,7 @@ const ContactCard = (props) => {
           getContacts={props.fetchContacts}
         />
       )}
-    </div>
+    </Card>
   );
 };
 

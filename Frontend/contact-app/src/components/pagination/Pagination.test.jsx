@@ -1,9 +1,9 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import Pagination from "./Pagination";
 
 const renderPagination = (props = {}) => {
-  const handlers = { onPageChange: jest.fn(), onPageSizeChange: jest.fn() };
+  const handlers = { onPageChange: vi.fn(), onPageSizeChange: vi.fn() };
   render(
     <Pagination
       currentPage={1}
@@ -79,8 +79,12 @@ test("Next and page buttons report the page number as a number", () => {
   expect(onPageChange).toHaveBeenLastCalledWith(5);
 });
 
-test("changing the page size reports the new size as a number", () => {
+test("changing the page size reports the new size as a number", async () => {
+  const user = userEvent.setup();
   const { onPageSizeChange } = renderPagination();
-  fireEvent.change(screen.getByLabelText("Contacts per page"), { target: { value: "5" } });
+
+  await user.click(screen.getByRole("combobox", { name: "Contacts per page" }));
+  await user.click(screen.getByRole("option", { name: "5 / page" }));
+
   expect(onPageSizeChange).toHaveBeenCalledWith(5);
 });

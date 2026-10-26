@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import Button from "../button/Button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import Spinner from "../ui/Spinner";
 import { getUser } from "../../service/authService";
 import ChangePasswordModal from "../modals/ChangePasswordModal";
@@ -82,102 +87,72 @@ const UserProfile = () => {
 
   if (isLoading) {
     return (
-      <div
-        role="status"
-        className="flex flex-col items-center justify-center gap-3 py-32 text-sky-600"
-      >
-        <Spinner className="h-8 w-8" />
-        <p className="text-sm font-medium text-slate-500">Loading profile...</p>
+      <div role="status" className="flex flex-col items-center justify-center gap-3 py-32 text-muted-foreground">
+        <Spinner className="h-6 w-6" />
+        <p className="text-sm">Loading profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto grid w-full max-w-4xl gap-6 p-4 md:p-6">
       {loadFailed && (
-        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 ring-1 ring-amber-200">
-          Couldn&apos;t load the latest profile details. Showing the last saved copy.
-        </p>
+        <Alert variant="warning">
+          <AlertDescription>
+            Couldn&apos;t load the latest profile details. Showing the last saved copy.
+          </AlertDescription>
+        </Alert>
       )}
-      <div className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-slate-200/70">
-        {/* Banner */}
-        <div className="relative h-36 bg-gradient-to-r from-sky-600 via-sky-700 to-cyan-800">
-          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_50%,white_1px,transparent_1px)] [background-size:24px_24px]" />
-        </div>
 
-        {/* Identity header */}
-        <div className="px-6 pb-2 sm:px-10">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-5">
-              <span className="relative -mt-14 flex h-28 w-28 flex-shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-cyan-600 text-4xl font-extrabold text-white shadow-xl ring-4 ring-white">
-                {initials}
-              </span>
-              <div className="sm:pb-1">
-                <h1 className="text-2xl font-bold capitalize tracking-tight text-slate-900 sm:text-3xl">
-                  {currentUser.firstName} {currentUser.lastName}
-                </h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
-                    <UserIcon className="h-3 w-3" />
-                    Account Holder
-                  </span>
-                  {memberSince && (
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                      Member since {memberSince}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-shrink-0 items-center gap-2 sm:pb-1">
-              <Button
-                name="Change Password"
-                image={<LockIcon className="h-4 w-4" />}
-                onClick={openChangePasswordModal}
-                className="border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              />
-              <Button
-                name="Edit Profile"
-                image={<PencilIcon className="h-4 w-4" />}
-                onClick={openEditProfileModal}
-                className="bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-              />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-16 w-16 text-xl sm:h-20 sm:w-20">
+            <AvatarFallback className="font-semibold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="grid gap-2">
+            <h1 className="text-2xl font-semibold capitalize tracking-tight">
+              {currentUser.firstName} {currentUser.lastName}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Account Holder</Badge>
+              {memberSince && <Badge variant="outline">Member since {memberSince}</Badge>}
             </div>
           </div>
         </div>
 
-        {/* Details */}
-        <div className="mt-6 px-6 pb-8 sm:px-10">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Personal Details
-          </h2>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={openChangePasswordModal}>
+            <LockIcon />
+            Change Password
+          </Button>
+          <Button onClick={openEditProfileModal}>
+            <PencilIcon />
+            Edit Profile
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Personal details</CardTitle>
+          <CardDescription>The details saved on your account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
             {detailFields.map(({ label, value, Icon, capitalize }) => (
-              <div
-                key={label}
-                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 transition-colors duration-200 hover:border-sky-200 hover:bg-sky-50/60"
-              >
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white text-sky-600 shadow-sm ring-1 ring-slate-200">
-                  <Icon className="h-4 w-4" />
-                </span>
+              <div key={label} className="flex items-start gap-3">
+                <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    {label}
-                  </p>
-                  <p
-                    className={`mt-0.5 truncate text-sm font-semibold text-slate-800 ${
-                      capitalize ? "capitalize" : ""
-                    }`}
-                  >
+                  <dt className="text-sm text-muted-foreground">{label}</dt>
+                  <dd className={cn("truncate text-sm font-medium", capitalize && "capitalize")}>
                     {value || <EmptyValue />}
-                  </p>
+                  </dd>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
+          </dl>
+        </CardContent>
+      </Card>
 
       {isChangePasswordModalOpen && (
         <ChangePasswordModal

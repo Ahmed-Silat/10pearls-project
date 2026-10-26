@@ -10,7 +10,7 @@ export default function Highlight({ text, query }) {
   }
   return (
     <>
-      <mark className="rounded-sm bg-amber-200/80 px-0.5 text-inherit">{value.slice(0, term.length)}</mark>
+      <mark className="rounded-sm bg-primary/15 px-0.5 text-inherit">{value.slice(0, term.length)}</mark>
       {value.slice(term.length)}
     </>
   );

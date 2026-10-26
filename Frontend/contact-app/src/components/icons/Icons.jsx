@@ -1,30 +1,41 @@
-export {
-  FaMagnifyingGlass as SearchIcon,
-  FaBars as MenuIcon,
-  FaXmark as CloseIcon,
-  FaChevronDown as ChevronDownIcon,
-  FaChevronLeft as ChevronLeftIcon,
-  FaChevronRight as ChevronRightIcon,
-  FaRegUser as UserIcon,
-  FaUsers as UsersIcon,
-  FaPlus as PlusIcon,
-  FaPenToSquare as PencilIcon,
-  FaTrashCan as TrashIcon,
-  FaPhone as PhoneIcon,
-  FaEnvelope as MailIcon,
-  FaLocationDot as PinIcon,
-  FaLock as LockIcon,
-  FaRightFromBracket as LogoutIcon,
-  FaFacebookF as FacebookIcon,
-  FaCheck as CheckIcon,
-  FaRegEye as EyeIcon,
-  FaArrowDownAZ as SortAZIcon,
-  FaArrowDownZA as SortZAIcon,
-  FaHouse as HomeIcon,
-  FaMagnifyingGlassLocation as LostIcon,
-  FaStar as StarIcon,
-  FaRegStar as StarOutlineIcon,
-  FaKitMedical as EmergencyIcon,
-} from "react-icons/fa6";
+import { Star } from "lucide-react";
 
-export { FaGoogle as GoogleIcon } from "react-icons/fa";
+/**
+ * Every icon the app uses, from lucide (the icon set shadcn/ui is built with). Components import icons from
+ * here by role (PhoneIcon, TrashIcon, ...), so the icon set can change in one place.
+ */
+export {
+  Search as SearchIcon,
+  Menu as MenuIcon,
+  X as CloseIcon,
+  ChevronDown as ChevronDownIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  ChevronsUpDown as ChevronsUpDownIcon,
+  ArrowLeft as ArrowLeftIcon,
+  User as UserIcon,
+  Users as UsersIcon,
+  BookUser as LogoIcon,
+  Plus as PlusIcon,
+  SquarePen as PencilIcon,
+  Trash2 as TrashIcon,
+  Phone as PhoneIcon,
+  Mail as MailIcon,
+  MapPin as PinIcon,
+  Lock as LockIcon,
+  LogOut as LogoutIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
+  ArrowDownAZ as SortAZIcon,
+  ArrowDownZA as SortZAIcon,
+  House as HomeIcon,
+  SearchX as LostIcon,
+  Star as StarOutlineIcon,
+  Siren as EmergencyIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon,
+  Monitor as MonitorIcon,
+} from "lucide-react";
+
+/** A filled star, for starred (favourite) contacts. */
+export const StarIcon = (props) => <Star fill="currentColor" {...props} />;

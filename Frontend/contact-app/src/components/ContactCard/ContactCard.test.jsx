@@ -1,16 +1,9 @@
-import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import ContactCard from "./ContactCard";
 import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 
-jest.mock("../../service/ContactService");
-
-// axios ships as an ES module that Create React App's Jest setup can't load; the API is mocked anyway.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
+vi.mock("../../service/ContactService");
 
 const LONG_NAME = "muhammad abdullah bin abdul rehman qureshi";
 
@@ -23,14 +16,25 @@ const renderCard = (overrides = {}) =>
       phone="0300-1234567"
       email="m.qureshi@example.com"
       address=""
-      fetchContacts={jest.fn()}
+      fetchContacts={vi.fn()}
       {...overrides}
     />
   );
 
-test("the name shows its full text on hover", () => {
+test("hovering the name shows it in full in a tooltip", async () => {
   renderCard();
-  expect(screen.getByRole("button", { name: LONG_NAME })).toHaveAttribute("title", LONG_NAME);
+
+  await userEvent.hover(screen.getByRole("button", { name: LONG_NAME }));
+
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(LONG_NAME);
+});
+
+test("the icon buttons explain themselves in tooltips", async () => {
+  renderCard();
+
+  await userEvent.hover(screen.getByRole("button", { name: `Edit ${LONG_NAME}` }));
+
+  expect(await screen.findByRole("tooltip")).toHaveTextContent("Edit");
 });
 
 test("'View details' opens the full contact details", () => {
@@ -161,7 +165,7 @@ describe("favorites", () => {
 
   test("clicking the star saves it and quietly reloads the list", async () => {
     setFavorite.mockResolvedValue({});
-    const fetchContacts = jest.fn();
+    const fetchContacts = vi.fn();
     renderCard({ fetchContacts });
 
     fireEvent.click(star());
@@ -180,7 +184,6 @@ describe("favorites", () => {
 
     expect(star()).toHaveAttribute("aria-busy", "true");
     expect(star()).toBeDisabled();
-    expect(star()).toHaveAttribute("title", "Saving...");
     expect(star().querySelector("svg.animate-spin")).not.toBeNull();
     // Not shown as starred until the server has confirmed it.
     expect(star()).toHaveAttribute("aria-pressed", "false");
@@ -204,7 +207,7 @@ describe("favorites", () => {
 
   test("if saving fails, the star stays as it was", async () => {
     setFavorite.mockRejectedValue(new Error("offline"));
-    const fetchContacts = jest.fn();
+    const fetchContacts = vi.fn();
     renderCard({ fetchContacts });
 
     fireEvent.click(star());
@@ -239,7 +242,7 @@ describe("emergency contacts", () => {
 
   test("clicking it saves, shows the badge and quietly reloads the list", async () => {
     setEmergency.mockResolvedValue({});
-    const fetchContacts = jest.fn();
+    const fetchContacts = vi.fn();
     renderCard({ fetchContacts });
 
     fireEvent.click(toggle());
@@ -279,7 +282,7 @@ describe("emergency contacts", () => {
 
   test("if saving fails, it stays as it was", async () => {
     setEmergency.mockRejectedValue(new Error("offline"));
-    const fetchContacts = jest.fn();
+    const fetchContacts = vi.fn();
     renderCard({ fetchContacts });
 
     fireEvent.click(toggle());

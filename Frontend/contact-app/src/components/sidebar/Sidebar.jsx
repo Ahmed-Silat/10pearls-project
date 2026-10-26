@@ -1,10 +1,43 @@
 import { useCallback, useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { EmergencyIcon, StarIcon, TrashIcon, UsersIcon } from "../icons/Icons";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  ChevronsUpDownIcon,
+  EmergencyIcon,
+  LogoIcon,
+  LogoutIcon,
+  StarIcon,
+  TrashIcon,
+  UserIcon,
+  UsersIcon,
+} from "../icons/Icons";
 import { CONTACTS_CHANGED_EVENT, getContactCounts } from "../../service/ContactService";
 
 /**
- * The sections of the app. `count` is the key in the counts response. Recently deleted sits apart at the bottom.
+ * The contact sections. `count` is the key in the counts response. Recently deleted sits in its own group.
  * To add a section: add an entry here, a route in App.jsx, and a filter in the backend.
  */
 export const NAV_SECTIONS = [
@@ -44,72 +77,173 @@ function useContactCounts() {
   return counts;
 }
 
-const TONES = {
-  // White sidebar on desktop.
-  light: {
-    link: (active) =>
-      active
-        ? "bg-sky-50 text-sky-700 font-semibold"
-        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-    icon: (active) => (active ? "text-sky-600" : "text-slate-400"),
-    count: (active) => (active ? "text-sky-700" : "text-slate-400"),
-    divider: "border-slate-200",
-  },
-  // Inside the blue header's mobile menu.
-  dark: {
-    link: (active) =>
-      active ? "bg-white/15 text-white font-semibold" : "text-slate-200 hover:bg-white/10 hover:text-white",
-    icon: (active) => (active ? "text-white" : "text-sky-200"),
-    count: () => "text-sky-100/80",
-    divider: "border-white/10",
-  },
-};
+/** The signed-in user from localStorage, re-read whenever the profile is edited. */
+function useCurrentUser() {
+  const [, setVersion] = useState(0);
+  useEffect(() => {
+    const refresh = () => setVersion((v) => v + 1);
+    window.addEventListener("userDataUpdated", refresh);
+    return () => window.removeEventListener("userDataUpdated", refresh);
+  }, []);
 
-/** The section links. Used by the desktop sidebar and by the header's mobile menu. */
-export function SidebarNav({ tone = "light", onNavigate }) {
-  const counts = useContactCounts();
-  const styles = TONES[tone];
+  const stored = localStorage.getItem("userData");
+  const user = stored ? JSON.parse(stored) : null;
+  return {
+    fullName: [user?.firstName, user?.lastName].filter(Boolean).join(" "),
+    email: user?.email || "",
+    initials: `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase(),
+  };
+}
 
-  const renderLink = ({ to, label, Icon, count }) => (
-    <li key={to}>
-      <NavLink
-        to={to}
-        end
-        onClick={onNavigate}
-        className={({ isActive }) =>
-          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${styles.link(isActive)}`
-        }
-      >
-        {({ isActive }) => (
-          <>
-            <Icon className={`h-4 w-4 flex-shrink-0 ${styles.icon(isActive)}`} />
-            <span className="flex-1 truncate">{label}</span>
-            {counts && (
-              <span className={`text-xs tabular-nums ${styles.count(isActive)}`} data-testid={`count-${count}`}>
-                {counts[count]}
-              </span>
-            )}
-          </>
-        )}
-      </NavLink>
-    </li>
-  );
-
+function NavItem({ to, label, Icon, count, counts }) {
+  const { isMobile, setOpenMobile } = useSidebar();
   return (
-    <nav aria-label="Sections">
-      <ul className="space-y-1">{NAV_SECTIONS.map(renderLink)}</ul>
-      <ul className={`mt-3 space-y-1 border-t pt-3 ${styles.divider}`}>
-        {renderLink(RECENTLY_DELETED_SECTION)}
-      </ul>
-    </nav>
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild tooltip={label}>
+        {/* NavLink marks the current page with aria-current, which the button styles as active. */}
+        <NavLink
+          to={to}
+          end
+          onClick={() => isMobile && setOpenMobile(false)}
+          className="aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-accent-foreground"
+        >
+          <Icon />
+          <span>{label}</span>
+        </NavLink>
+      </SidebarMenuButton>
+      {counts && <SidebarMenuBadge data-testid={`count-${count}`}>{counts[count]}</SidebarMenuBadge>}
+    </SidebarMenuItem>
   );
 }
 
-/** Left-hand navigation on tablets and up. On phones the same links are in the header's ☰ menu. */
-export default function Sidebar() {
+/** The signed-in user at the bottom of the sidebar, with the account menu (profile, sign out). */
+function NavUser({ onSignOut }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { fullName, email, initials } = useCurrentUser();
+  const avatar = (
+    <Avatar className="h-8 w-8 rounded-lg">
+      <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-medium uppercase text-primary">
+        {initials || <UserIcon className="h-4 w-4" />}
+      </AvatarFallback>
+    </Avatar>
+  );
+
   return (
-    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-60 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white px-3 py-6 md:block">
-      <SidebarNav />
-    </aside>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              // Shown only while the sidebar is collapsed to icons, when the name is hidden.
+              tooltip={fullName || "Your account"}
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <span className="sr-only">Open user menu</span>
+              {avatar}
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold capitalize">{fullName || "Your account"}</span>
+                <span className="truncate text-xs text-muted-foreground">{email}</span>
+              </div>
+              <ChevronsUpDownIcon className="ml-auto size-4" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            sideOffset={4}
+          >
+            {/* Who is signed in. Long names and emails are cut short; hovering shows them in full. */}
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                {avatar}
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold capitalize" data-testid="menu-user-name">
+                    {fullName || "Your account"}
+                  </span>
+                  {email && (
+                    <span className="truncate text-xs text-muted-foreground" data-testid="menu-user-email">
+                      {email}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/user-profile" onClick={() => isMobile && setOpenMobile(false)}>
+                <UserIcon />
+                My Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onSignOut}>
+              <LogoutIcon />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+/**
+ * The app's sidebar (shadcn/ui Sidebar block): brand, the contact sections with their counts, Recently deleted,
+ * and the account menu at the bottom. Collapses to icons on desktop; on phones it opens as a slide-in sheet.
+ */
+export default function AppSidebar({ onSignOut }) {
+  const counts = useContactCounts();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link to="/" aria-label="ContactHub home" onClick={() => isMobile && setOpenMobile(false)}>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <LogoIcon className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">ContactHub</span>
+                  <span className="truncate text-xs text-muted-foreground">Address book</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <nav aria-label="Sections">
+          <SidebarGroup>
+            <SidebarGroupLabel>Contacts</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {NAV_SECTIONS.map((section) => (
+                  <NavItem key={section.to} {...section} counts={counts} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Manage</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <NavItem {...RECENTLY_DELETED_SECTION} counts={counts} />
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </nav>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <NavUser onSignOut={onSignOut} />
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }
