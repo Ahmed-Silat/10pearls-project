@@ -29,7 +29,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+import com._pearls.contactApp.Dto.ContactDetailDto;
+import com._pearls.contactApp.Dto.EmailEntryRequest;
+import com._pearls.contactApp.Dto.PhoneEntryRequest;
+import com._pearls.contactApp.Model.ContactDetail;
+
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -943,5 +951,139 @@ class ContactServiceTest {
         assertThatThrownBy(() -> contactService.bulkTag(1L, List.of(10L), 5L, true))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(contactRepo, never()).findByUser_IdAndIdIn(any(), any());
+    }
+
+    // Richer contact fields ----------------------------------------------------------------------------------
+
+    private ContactRequest minimalRequest() {
+        ContactRequest request = new ContactRequest();
+        request.setFirstName("John");
+        request.setPhone("0300 1234567");
+        return request;
+    }
+
+    private ContactDto create(ContactRequest request) {
+        when(userRepo.findById(1L)).thenReturn(Optional.of(owner));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+        return contactService.createContact(1L, request);
+    }
+
+    @Test
+    void createContact_savesCompanyBirthdayAndNotes() {
+        ContactRequest request = minimalRequest();
+        request.setCompany("  10Pearls ");
+        request.setBirthday(LocalDate.of(1990, 5, 14));
+        request.setNotes("  Met at the conference.\nLikes tea.  ");
+
+        ContactDto created = create(request);
+
+        assertThat(created.getCompany()).isEqualTo("10Pearls");
+        assertThat(created.getBirthday()).isEqualTo("1990-05-14");
+        assertThat(created.getNotes()).isEqualTo("Met at the conference.\nLikes tea.");
+    }
+
+    @Test
+    void createContact_blankCompanyAndNotes_areSavedAsNull() {
+        ContactRequest request = minimalRequest();
+        request.setCompany("   ");
+        request.setNotes("");
+
+        ContactDto created = create(request);
+
+        assertThat(created.getCompany()).isNull();
+        assertThat(created.getNotes()).isNull();
+        assertThat(created.getBirthday()).isNull();
+        assertThat(created.getAdditionalPhones()).isEmpty();
+        assertThat(created.getAdditionalEmails()).isEmpty();
+    }
+
+    @Test
+    void createContact_otherPhones_keepTheirOrderAndLabels_withoutBlanksOrCopies() {
+        ContactRequest request = minimalRequest();
+        request.setAdditionalPhones(Arrays.asList(
+                new PhoneEntryRequest("WORK", " 021 111 2222 "),
+                new PhoneEntryRequest("home", "  "),
+                new PhoneEntryRequest("mobile", "0300-1234567"),   // the main number in another format
+                new PhoneEntryRequest(null, "0211112222"),         // a copy of the work number
+                null,
+                new PhoneEntryRequest(null, "042 333 4444")));
+
+        ContactDto created = create(request);
+
+        assertThat(created.getAdditionalPhones()).containsExactly(
+                new ContactDetailDto("work", "021 111 2222"),
+                new ContactDetailDto("other", "042 333 4444"));
+    }
+
+    @Test
+    void createContact_otherEmails_areLowerCased_withoutCopiesOfTheMainOne() {
+        ContactRequest request = minimalRequest();
+        request.setEmail("john@example.com");
+        request.setAdditionalEmails(List.of(
+                new EmailEntryRequest("work", " John@Work.COM "),
+                new EmailEntryRequest("home", "JOHN@example.com")));
+
+        ContactDto created = create(request);
+
+        assertThat(created.getEmail()).isEqualTo("john@example.com");
+        assertThat(created.getAdditionalEmails()).containsExactly(new ContactDetailDto("work", "john@work.com"));
+    }
+
+    @Test
+    void createContact_withoutAMainEmail_theFirstOtherEmailBecomesTheMainOne() {
+        ContactRequest request = minimalRequest();
+        request.setEmail("");
+        request.setAdditionalEmails(List.of(
+                new EmailEntryRequest("work", "john@work.com"),
+                new EmailEntryRequest("home", "john@home.com")));
+
+        ContactDto created = create(request);
+
+        assertThat(created.getEmail()).isEqualTo("john@work.com");
+        assertThat(created.getAdditionalEmails()).containsExactly(new ContactDetailDto("home", "john@home.com"));
+        // The promoted email is the one checked for duplicates.
+        verify(contactRepo).findTop5ByUser_IdAndEmailIgnoreCaseAndIdNotOrderByIdAsc(1L, "john@work.com", 0L);
+    }
+
+    @Test
+    void updateContact_replacesEveryRicherField() {
+        Contact existing = contact(10L, "Old", owner);
+        existing.setCompany("Old Co");
+        existing.setBirthday(LocalDate.of(1980, 1, 1));
+        existing.setNotes("old notes");
+        existing.setAdditionalPhones(new ArrayList<>(List.of(new ContactDetail("home", "042 000 0000"))));
+        existing.setAdditionalEmails(new ArrayList<>(List.of(new ContactDetail("home", "old@home.com"))));
+        ContactRequest request = minimalRequest();
+        request.setCompany("New Co");
+        request.setBirthday(LocalDate.of(1991, 2, 3));
+        request.setNotes("new notes");
+        request.setAdditionalPhones(List.of(new PhoneEntryRequest("work", "021 999 8888")));
+        request.setAdditionalEmails(List.of());
+
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ContactDto updated = contactService.updateContact(10L, 1L, request);
+
+        assertThat(updated.getCompany()).isEqualTo("New Co");
+        assertThat(updated.getBirthday()).isEqualTo("1991-02-03");
+        assertThat(updated.getNotes()).isEqualTo("new notes");
+        assertThat(updated.getAdditionalPhones()).containsExactly(new ContactDetailDto("work", "021 999 8888"));
+        assertThat(updated.getAdditionalEmails()).isEmpty();
+    }
+
+    @Test
+    void updateContact_leavingOutTheOtherPhonesAndEmails_keepsThem() {
+        Contact existing = contact(10L, "Old", owner);
+        existing.setAdditionalPhones(new ArrayList<>(List.of(new ContactDetail("home", "042 000 0000"))));
+        existing.setAdditionalEmails(new ArrayList<>(List.of(new ContactDetail("home", "old@home.com"))));
+
+        when(contactRepo.findById(10L)).thenReturn(Optional.of(existing));
+        when(contactRepo.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ContactDto updated = contactService.updateContact(10L, 1L, minimalRequest());
+
+        assertThat(updated.getAdditionalPhones()).containsExactly(new ContactDetailDto("home", "042 000 0000"));
+        assertThat(updated.getAdditionalEmails()).containsExactly(new ContactDetailDto("home", "old@home.com"));
     }
 }

@@ -8,6 +8,7 @@ import { EyeIcon, EyeOffIcon } from "../icons/Icons";
 /**
  * A form field in shadcn/ui style: Label, Input and an error message underneath. Optional fields say so in the
  * label; password fields get a show/hide button. Place several in a `grid gap-4` (no outer margin here).
+ * `inputProps` are passed on to the input (e.g. `max` for a date).
  */
 export default function LabelWithInput(props) {
   const {
@@ -22,6 +23,7 @@ export default function LabelWithInput(props) {
     className = "",
     error,
     optional = false,
+    inputProps = {},
   } = props;
 
   const isPassword = inputType === "password";
@@ -37,6 +39,7 @@ export default function LabelWithInput(props) {
       </Label>
       <div className="relative">
         <Input
+          {...inputProps}
           type={fieldType}
           id={inputId}
           value={value}

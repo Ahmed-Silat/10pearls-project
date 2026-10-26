@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
+  BirthdayIcon,
   EmergencyIcon,
   EyeIcon,
   MailIcon,
@@ -25,6 +26,9 @@ import Hint from "../ui/Hint";
 import TagBadge from "../tags/TagBadge";
 import { getContactById, setEmergency, setFavorite } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
+import { upcomingBirthdayText } from "../../lib/birthday";
+
+const plural = (count, noun) => `${count} more ${noun}${count === 1 ? "" : "s"}`;
 
 const ContactCard = (props) => {
   const [isFavorite, setIsFavorite] = useState(Boolean(props.favorite));
@@ -118,14 +122,29 @@ const ContactCard = (props) => {
   // Emergency outranks the star for the outline colour, as it's the more urgent one to spot.
   const borderColor = isEmergency ? "border-red-500/50" : isFavorite ? "border-amber-400/60" : "";
   const tags = props.tags ?? [];
+  const birthdaySoon = upcomingBirthdayText(props.birthday);
 
-  /** One line of contact details: a muted icon and the value (or N/A). */
-  const detail = (Icon, value) => (
+  /**
+   * One line of contact details: a muted icon and the value (or N/A). `others` are the contact's extra phone
+   * numbers or emails: the card shows how many, and hovering lists them.
+   */
+  const detail = (Icon, value, others = [], noun = "") => (
     <p className="flex min-w-0 items-center gap-3">
       <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
       <span className="truncate">
         {value ? <Highlight text={value} query={props.highlight} /> : <EmptyValue />}
       </span>
+      {others.length > 0 && (
+        <Hint label={others.map((other) => other.value).join(", ")}>
+          <span
+            tabIndex={0}
+            aria-label={plural(others.length, noun)}
+            className="flex-shrink-0 rounded-sm bg-muted px-1.5 text-xs font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            +{others.length}
+          </span>
+        </Hint>
+      )}
     </p>
   );
 
@@ -167,23 +186,30 @@ const ContactCard = (props) => {
           )}
         </div>
         {/* The name gets the full width; clicking it opens the details, hovering shows it in full. */}
-        <h2 className="min-w-0 flex-1">
-          <Hint label={fullName} align="start">
-            <button
-              type="button"
-              onClick={openViewModal}
-              className="block w-full truncate rounded-sm text-left text-base font-semibold capitalize leading-tight hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <Highlight text={props.firstName} query={props.highlight} />
-              {props.lastName && (
-                <>
-                  {" "}
-                  <Highlight text={props.lastName} query={props.highlight} />
-                </>
-              )}
-            </button>
-          </Hint>
-        </h2>
+        <div className="min-w-0 flex-1">
+          <h2>
+            <Hint label={fullName} align="start">
+              <button
+                type="button"
+                onClick={openViewModal}
+                className="block w-full truncate rounded-sm text-left text-base font-semibold capitalize leading-tight hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <Highlight text={props.firstName} query={props.highlight} />
+                {props.lastName && (
+                  <>
+                    {" "}
+                    <Highlight text={props.lastName} query={props.highlight} />
+                  </>
+                )}
+              </button>
+            </Hint>
+          </h2>
+          {props.company && (
+            <p className="truncate pt-0.5 text-xs text-muted-foreground" title={props.company}>
+              <Highlight text={props.company} query={props.highlight} />
+            </p>
+          )}
+        </div>
         <Hint label={isFavorite ? "Remove from favorites" : "Add to favorites"}>
           <Button
             variant="ghost"
@@ -205,9 +231,15 @@ const ContactCard = (props) => {
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-2.5 px-4 pb-4 pt-0 text-sm">
-        {detail(PhoneIcon, props.phone)}
-        {detail(MailIcon, props.email)}
+        {detail(PhoneIcon, props.phone, props.additionalPhones, "phone number")}
+        {detail(MailIcon, props.email, props.additionalEmails, "email")}
         {detail(PinIcon, props.address)}
+        {birthdaySoon && (
+          <p className="flex min-w-0 items-center gap-3 font-medium text-pink-600 dark:text-pink-400">
+            <BirthdayIcon className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{birthdaySoon}</span>
+          </p>
+        )}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5" aria-label="Tags">
             {tags.map((tag) => (

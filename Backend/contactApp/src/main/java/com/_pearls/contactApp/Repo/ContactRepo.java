@@ -17,7 +17,8 @@ import java.util.Optional;
 public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificationExecutor<Contact> {
 
     /**
-     * Prefix search across name/email/phone/address. {@code pattern} must already have wildcards escaped.
+     * Prefix search across name, company, address and every phone number and email (the main ones and the
+     * extra ones). {@code pattern} must already have wildcards escaped.
      * {@code favoritesOnly} and {@code emergencyOnly} limit it to the Favorites or Emergency page, and a
      * {@code tagId} other than 0 to contacts with that tag.
      */
@@ -33,7 +34,12 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
                OR LOWER(c.lastName)  LIKE LOWER(:pattern)
                OR LOWER(c.email)     LIKE LOWER(:pattern)
                OR LOWER(c.phone)     LIKE LOWER(:pattern)
-               OR LOWER(c.address)   LIKE LOWER(:pattern))
+               OR LOWER(c.address)   LIKE LOWER(:pattern)
+               OR LOWER(c.company)   LIKE LOWER(:pattern)
+               OR EXISTS (SELECT 1 FROM Contact withPhone JOIN withPhone.additionalPhones p
+                          WHERE withPhone = c AND LOWER(p.value) LIKE LOWER(:pattern))
+               OR EXISTS (SELECT 1 FROM Contact withEmail JOIN withEmail.additionalEmails e
+                          WHERE withEmail = c AND LOWER(e.value) LIKE LOWER(:pattern)))
             """)
     Page<Contact> searchByUserId(@Param("userId") Long userId, @Param("pattern") String pattern,
                                  @Param("favoritesOnly") boolean favoritesOnly,
