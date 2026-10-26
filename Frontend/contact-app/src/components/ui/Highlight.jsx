@@ -10,7 +10,10 @@ export default function Highlight({ text, query }) {
   }
   return (
     <>
-      <mark className="rounded-sm bg-primary/15 px-0.5 text-inherit">{value.slice(0, term.length)}</mark>
+      {/* Highlighter yellow, so matches stand out in the greyscale theme (light and dark). */}
+      <mark className="rounded-sm bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/30">
+        {value.slice(0, term.length)}
+      </mark>
       {value.slice(term.length)}
     </>
   );
