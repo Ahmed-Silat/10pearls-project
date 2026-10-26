@@ -2,7 +2,14 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import Sidebar from "./Sidebar";
+import { TagsProvider } from "../tags/TagsProvider";
+import { getTags } from "../../service/TagService";
 import { CONTACTS_CHANGED_EVENT, getContactCounts } from "../../service/ContactService";
+
+vi.mock("../../service/TagService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTags: vi.fn(() => Promise.resolve([])),
+}));
 
 vi.mock("../../service/ContactService", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -14,9 +21,11 @@ afterEach(() => getContactCounts.mockReset());
 const renderAt = (path) =>
   render(
     <MemoryRouter initialEntries={[path]}>
-      <SidebarProvider>
-        <Sidebar onSignOut={() => {}} />
-      </SidebarProvider>
+      <TagsProvider>
+        <SidebarProvider>
+          <Sidebar onSignOut={() => {}} />
+        </SidebarProvider>
+      </TagsProvider>
     </MemoryRouter>
   );
 
@@ -66,4 +75,30 @@ test("still shows the links if the counts can't be loaded", async () => {
   await waitFor(() => expect(getContactCounts).toHaveBeenCalled());
   expect(link("All contacts")).toBeInTheDocument();
   expect(screen.queryByTestId("count-all")).not.toBeInTheDocument();
+});
+
+describe("tags", () => {
+  test("lists each tag with its contact count, linking to the tag's page", async () => {
+    getContactCounts.mockResolvedValue({ all: 3, favorites: 0, emergency: 0, recentlyDeleted: 0 });
+    getTags.mockResolvedValue([
+      { id: 1, name: "Family", color: "green", contactCount: 2 },
+      { id: 2, name: "Work", color: "blue", contactCount: 7 },
+    ]);
+    renderAt("/tags/2");
+
+    await waitFor(() => expect(link("Work")).toHaveAttribute("href", "/tags/2"));
+    expect(link("Work")).toHaveAttribute("aria-current", "page");
+    expect(link("Family")).toHaveAttribute("href", "/tags/1");
+    expect(screen.getByText("7")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Options for Work" })).toBeInTheDocument();
+  });
+
+  test("with no tags yet, offers to create one", async () => {
+    getContactCounts.mockResolvedValue({ all: 0, favorites: 0, emergency: 0, recentlyDeleted: 0 });
+    getTags.mockResolvedValue([]);
+    renderAt("/");
+
+    await waitFor(() => expect(getTags).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: "Create a tag" })).toBeInTheDocument();
+  });
 });

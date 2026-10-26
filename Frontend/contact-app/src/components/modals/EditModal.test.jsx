@@ -44,5 +44,5 @@ test("shows whether it's an emergency contact, and saves the change", async () =
   fireEvent.click(screen.getByRole("button", { name: "Update" }));
 
   await waitFor(() => expect(updateContact).toHaveBeenCalledTimes(1));
-  expect(updateContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false });
+  expect(updateContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false, tagIds: [] });
 });

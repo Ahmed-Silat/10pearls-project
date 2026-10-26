@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -16,10 +18,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -77,4 +82,17 @@ public class Contact {
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
     private User user;
+
+    /**
+     * The user's tags on this contact. Loaded for a whole page of contacts in one query (BatchSize), not one
+     * query per contact. They stay while the contact is in Recently deleted, so a restore brings them back.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "contact_tags",
+            joinColumns = @JoinColumn(name = "contact_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    @BatchSize(size = 100)
+    @JsonIgnore
+    @Builder.Default
+    private Set<Tag> tags = new HashSet<>();
 }

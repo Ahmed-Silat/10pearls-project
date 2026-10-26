@@ -35,6 +35,12 @@ export {
   Sun as SunIcon,
   Moon as MoonIcon,
   Monitor as MonitorIcon,
+  Check as CheckIcon,
+  Tag as TagIcon,
+  Tags as TagsIcon,
+  Ellipsis as EllipsisIcon,
+  ListChecks as SelectIcon,
+  CircleMinus as RemoveTagIcon,
 } from "lucide-react";
 
 /** A filled star, for starred (favourite) contacts. */

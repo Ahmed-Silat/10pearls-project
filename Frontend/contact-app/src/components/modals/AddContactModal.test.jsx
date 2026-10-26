@@ -64,8 +64,8 @@ test("a duplicate on save asks whether to save anyway, and does so", async () =>
   fireEvent.click(screen.getByRole("button", { name: "Save anyway" }));
 
   await waitFor(() => expect(createNewContact).toHaveBeenCalledTimes(2));
-  expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false });
-  expect(createNewContact.mock.calls[1][6]).toEqual({ allowDuplicate: true, emergency: false });
+  expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false, tagIds: [] });
+  expect(createNewContact.mock.calls[1][6]).toEqual({ allowDuplicate: true, emergency: false, tagIds: [] });
 });
 
 test("Go back returns to the form without saving", async () => {
@@ -114,7 +114,7 @@ describe("emergency contact", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Contact" }));
 
     await waitFor(() => expect(createNewContact).toHaveBeenCalledTimes(1));
-    expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: true });
+    expect(createNewContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: true, tagIds: [] });
   });
 
   test("opened from the Emergency page, it starts ticked", () => {

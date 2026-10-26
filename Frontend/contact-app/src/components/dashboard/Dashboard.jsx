@@ -19,7 +19,19 @@ import Pagination from "../pagination/Pagination";
 import Spinner from "../ui/Spinner";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "../../service/Constants";
-import { EmergencyIcon, PlusIcon, SortAZIcon, SortZAIcon, StarIcon, UsersIcon } from "../icons/Icons";
+import {
+  EmergencyIcon,
+  PlusIcon,
+  SelectIcon,
+  SortAZIcon,
+  SortZAIcon,
+  StarIcon,
+  TagIcon,
+  UsersIcon,
+} from "../icons/Icons";
+import { cn } from "@/lib/utils";
+import { tagDotClass } from "../tags/tagColors";
+import BulkActionBar from "./BulkActionBar";
 
 /** How long typing must pause before searching: short enough to feel instant, long enough to skip most keystrokes. */
 export const SEARCH_DEBOUNCE_MS = 500;
@@ -68,12 +80,26 @@ const parsePositiveInt = (value, fallback) => {
   return Number.isInteger(number) && number > 0 ? number : fallback;
 };
 
+/** The text for a tag's page, built from the tag. */
+const tagView = (tag) => ({
+  title: tag.name,
+  subtitle: "Contacts with this tag.",
+  noun: `contacts tagged "${tag.name}"`,
+  Icon: TagIcon,
+  empty: {
+    title: "No contacts with this tag yet",
+    text: "Add the tag from a contact's Edit form, or select several contacts and choose Add tag.",
+  },
+});
+
 /**
- * A list of contacts. `view` is the sidebar section: "all" (every contact), "favorites" (starred only) or
- * "emergency" (emergency contacts only). They share the cards, search, sorting and paging.
+ * A list of contacts. `view` is the sidebar section: "all" (every contact), "favorites" (starred only),
+ * "emergency" (emergency contacts only) or "tag" (contacts with `tag`). They share the cards, search, sorting,
+ * paging and selecting several contacts for bulk actions.
  */
-export default function Dashboard({ view = "all" }) {
-  const section = VIEWS[view] ?? VIEWS.all;
+export default function Dashboard({ view = "all", tag }) {
+  const tagId = view === "tag" ? tag?.id : undefined;
+  const section = view === "tag" ? tagView(tag) : VIEWS[view] ?? VIEWS.all;
   const EmptyIcon = section.Icon;
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
@@ -98,6 +124,19 @@ export default function Dashboard({ view = "all" }) {
   const isSearchPending = search !== debouncedSearchTerm;
   const isBusy = isLoading || isSearchPending;
   const loadingLabel = search ? "Searching..." : "Loading contacts...";
+
+  // Selecting contacts for bulk actions. "Select" turns on the checkboxes; ticking any keeps them on.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const isSelecting = selectMode || selectedIds.length > 0;
+  const clearSelection = useCallback(() => {
+    setSelectedIds([]);
+    setSelectMode(false);
+  }, []);
+  const setSelected = (contactId, selected) =>
+    setSelectedIds((prev) =>
+      selected ? (prev.includes(contactId) ? prev : [...prev, contactId]) : prev.filter((id) => id !== contactId)
+    );
 
   const openAddContactModal = () => setIsAddContactModalOpen(true);
   const closeAddContactModal = () => setIsAddContactModalOpen(false);
@@ -132,8 +171,10 @@ export default function Dashboard({ view = "all" }) {
     const requestId = ++latestRequestRef.current;
     if (!silent) setIsLoading(true);
     try {
+      // A tag's page lists all contacts with that tag; the other pages are filters of their own.
+      const filterArgs = tagId ? ["all", tagId] : [view];
       const data =
-        (await getContactsByUserId(userId, sortBy, debouncedSearchTerm, page, size, view)) || {};
+        (await getContactsByUserId(userId, sortBy, debouncedSearchTerm, page, size, ...filterArgs)) || {};
       if (requestId !== latestRequestRef.current) return;
 
       const { contacts = [], ...pagination } = data;
@@ -151,6 +192,8 @@ export default function Dashboard({ view = "all" }) {
       }
       setContact(contacts);
       setPaginationData(pagination);
+      // Contacts that left the page (deleted, or no longer match) can't stay selected.
+      setSelectedIds((prev) => prev.filter((id) => contacts.some((c) => c.id === id)));
     } catch (error) {
       if (requestId === latestRequestRef.current) {
         toast.error(getApiErrorMessage(error, "Couldn't load your contacts. Please try again."));
@@ -158,11 +201,28 @@ export default function Dashboard({ view = "all" }) {
     } finally {
       if (requestId === latestRequestRef.current) setIsLoading(false);
     }
-  }, [isSizeReady, userId, sortBy, debouncedSearchTerm, page, size, view]);
+  }, [isSizeReady, userId, sortBy, debouncedSearchTerm, page, size, view, tagId]);
 
   useEffect(() => {
     loadContacts();
   }, [loadContacts]);
+
+  // A selection belongs to one page of one list: start over when the page, order or search changes.
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [page, sortBy, debouncedSearchTerm]);
+
+  // Escape clears the selection (unless a menu or dialog is open; Escape closes that first).
+  useEffect(() => {
+    if (!isSelecting) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      if (document.querySelector("[role=dialog], [role=alertdialog], [role=menu]")) return;
+      clearSelection();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSelecting, clearSelection]);
 
   // Once real cards are on screen, measure them (the first size uses an estimated card height).
   useEffect(() => {
@@ -217,7 +277,12 @@ export default function Dashboard({ view = "all" }) {
     <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{section.title}</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+            {view === "tag" && (
+              <span aria-hidden="true" className={cn("h-3 w-3 flex-shrink-0 rounded-full", tagDotClass(tag?.color))} />
+            )}
+            <span className="min-w-0 truncate">{section.title}</span>
+          </h1>
           <p className="text-sm text-muted-foreground">{section.subtitle}</p>
         </div>
 
@@ -245,6 +310,18 @@ export default function Dashboard({ view = "all" }) {
               </SelectGroup>
             </SelectContent>
           </Select>
+
+          {contact.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => (isSelecting ? clearSelection() : setSelectMode(true))}
+              aria-pressed={isSelecting}
+              className="w-full flex-shrink-0 sm:w-auto"
+            >
+              <SelectIcon />
+              {isSelecting ? "Cancel" : "Select"}
+            </Button>
+          )}
 
           <Button onClick={openAddContactModal} className="w-full flex-shrink-0 sm:w-auto">
             <PlusIcon />
@@ -284,6 +361,10 @@ export default function Dashboard({ view = "all" }) {
                   address={value.address}
                   favorite={value.favorite}
                   emergency={value.emergency}
+                  tags={value.tags}
+                  selectable={isSelecting}
+                  selected={selectedIds.includes(value.id)}
+                  onSelectedChange={(selected) => setSelected(value.id, selected)}
                   highlight={debouncedSearchTerm}
                   userId={currentUser.id}
                   fetchContacts={loadContacts}
@@ -330,8 +411,9 @@ export default function Dashboard({ view = "all" }) {
           onClose={closeAddContactModal}
           userId={currentUser.id}
           fetchContacts={loadContacts}
-          // Added from the Emergency page: tick the box, so the new contact shows up on this page.
+          // Added from the Emergency page or a tag's page: preset it, so the new contact shows up on this page.
           defaultEmergency={view === "emergency"}
+          defaultTagIds={tagId ? [tagId] : []}
         />
       )}
       {/* Only needed when the contacts don't fit on one page. */}
@@ -342,6 +424,16 @@ export default function Dashboard({ view = "all" }) {
           totalContacts={paginationData.totalContacts}
           pageSize={paginationData.contactsPerPage}
           onPageChange={handlePageChange}
+        />
+      )}
+
+      {selectedIds.length > 0 && (
+        <BulkActionBar
+          contacts={contact.filter((c) => selectedIds.includes(c.id))}
+          allSelected={selectedIds.length === contact.length}
+          onSelectAll={() => setSelectedIds(contact.map((c) => c.id))}
+          onClear={clearSelection}
+          reload={loadContacts}
         />
       )}
     </div>

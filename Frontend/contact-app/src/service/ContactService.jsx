@@ -4,10 +4,13 @@ import api, { getApiErrorMessage } from "./Constants";
 export const CONTACTS_CHANGED_EVENT = "contactsChanged";
 const notifyContactsChanged = () => window.dispatchEvent(new Event(CONTACTS_CHANGED_EVENT));
 
-/** One page of contacts. `filter` is the sidebar section: "all" (default), "favorites" or "emergency". */
-export const getContactsByUserId = async (userId, sortBy, search, page, size, filter = "all") => {
+/**
+ * One page of contacts. `filter` is the sidebar section: "all" (default), "favorites" or "emergency".
+ * `tag` (a tag id) limits it to contacts with that tag.
+ */
+export const getContactsByUserId = async (userId, sortBy, search, page, size, filter = "all", tag) => {
   const { data } = await api.get(`/contact/user/${userId}`, {
-    params: { sortBy, search, page, size, filter },
+    params: { sortBy, search, page, size, filter, tag: tag || undefined },
   });
   return data;
 };
@@ -36,8 +39,8 @@ export const checkDuplicates = async ({ phone, email, excludeId }) => {
 };
 
 /**
- * `emergency` marks the new contact as an emergency contact. `allowDuplicate` saves even if another contact has
- * the same phone or email ("Save anyway").
+ * `emergency` marks the new contact as an emergency contact and `tagIds` gives it tags. `allowDuplicate` saves
+ * even if another contact has the same phone or email ("Save anyway").
  */
 export const createNewContact = async (
   firstName,
@@ -46,7 +49,7 @@ export const createNewContact = async (
   address,
   phone,
   user_id,
-  { allowDuplicate = false, emergency = false } = {}
+  { allowDuplicate = false, emergency = false, tagIds = [] } = {}
 ) => {
   const { data } = await api.post(`/contact`, {
     firstName,
@@ -55,6 +58,7 @@ export const createNewContact = async (
     phone,
     address,
     emergency,
+    tagIds,
     allowDuplicate,
   });
   notifyContactsChanged();
@@ -67,8 +71,8 @@ export const getContactById = async (contactId) => {
 };
 
 /**
- * `emergency` marks or unmarks it as an emergency contact; left out, it stays as it is. `allowDuplicate` saves
- * even if another contact has the same phone or email ("Save anyway").
+ * `emergency` marks or unmarks it as an emergency contact and `tagIds` replaces its tags; either one left out
+ * stays as it is. `allowDuplicate` saves even if another contact has the same phone or email ("Save anyway").
  */
 export const updateContact = async (
   contactId,
@@ -77,7 +81,7 @@ export const updateContact = async (
   email,
   phone,
   address,
-  { allowDuplicate = false, emergency } = {}
+  { allowDuplicate = false, emergency, tagIds } = {}
 ) => {
   const { data } = await api.put(`/contact/${contactId}`, {
     firstName,
@@ -86,9 +90,10 @@ export const updateContact = async (
     phone,
     address,
     emergency,
+    tagIds,
     allowDuplicate,
   });
-  // The Emergency count changes if the box was ticked or unticked.
+  // The Emergency and tag counts change if the box was ticked or the tags were edited.
   notifyContactsChanged();
   return data;
 };
@@ -129,6 +134,20 @@ export const restoreContact = async (contactId, { allowDuplicate = false } = {})
   });
   notifyContactsChanged();
   return data;
+};
+
+/** Moves many contacts to Recently deleted at once. Returns how many were moved. */
+export const bulkDeleteContacts = async (ids) => {
+  const { data } = await api.post(`/contact/bulk-delete`, { ids });
+  notifyContactsChanged();
+  return data.count;
+};
+
+/** Adds (`"ADD"`) or removes (`"REMOVE"`) a tag on many contacts at once. Returns how many changed. */
+export const bulkTagContacts = async (ids, tagId, action) => {
+  const { data } = await api.post(`/contact/bulk-tag`, { ids, tagId, action });
+  notifyContactsChanged();
+  return data.count;
 };
 
 export const deleteContact = async (contactId) => {

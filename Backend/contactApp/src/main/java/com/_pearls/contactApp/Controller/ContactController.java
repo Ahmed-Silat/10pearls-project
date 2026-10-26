@@ -1,6 +1,9 @@
 package com._pearls.contactApp.Controller;
 
 import com._pearls.contactApp.Config.AuthUser;
+import com._pearls.contactApp.Dto.BulkDeleteRequest;
+import com._pearls.contactApp.Dto.BulkResultDto;
+import com._pearls.contactApp.Dto.BulkTagRequest;
 import com._pearls.contactApp.Dto.ContactCountsDto;
 import com._pearls.contactApp.Dto.ContactDto;
 import com._pearls.contactApp.Dto.ContactRequest;
@@ -42,9 +45,10 @@ public class ContactController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "all") String filter) {
+            @RequestParam(defaultValue = "all") String filter,
+            @RequestParam(defaultValue = "0") long tag) {
         requireSelf(id, principal);
-        return contactService.getContactsByUserId(id, search, sortBy, page, size, filter);
+        return contactService.getContactsByUserId(id, search, sortBy, page, size, filter, tag);
     }
 
     /** How many contacts are in each sidebar section (all, favorites, emergency, recently deleted). */
@@ -120,6 +124,23 @@ public class ContactController {
             @RequestParam(defaultValue = "0") long excludeId,
             @AuthenticationPrincipal AuthUser principal) {
         return contactService.findDuplicates(principal.getId(), excludeId, phone, email);
+    }
+
+    /** Moves many contacts to Recently deleted: {@code {"ids": [1, 2]}}. Returns how many were moved. */
+    @PostMapping("/bulk-delete")
+    public BulkResultDto bulkDelete(@Valid @RequestBody BulkDeleteRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.bulkDelete(principal.getId(), request.getIds());
+    }
+
+    /**
+     * Adds a tag to many contacts or removes it: {@code {"ids": [1, 2], "tagId": 5, "action": "ADD"}}.
+     * Returns how many contacts changed.
+     */
+    @PostMapping("/bulk-tag")
+    public BulkResultDto bulkTag(@Valid @RequestBody BulkTagRequest request,
+            @AuthenticationPrincipal AuthUser principal) {
+        return contactService.bulkTag(principal.getId(), request.getIds(), request.getTagId(), request.isAdd());
     }
 
     @DeleteMapping("/{id}")

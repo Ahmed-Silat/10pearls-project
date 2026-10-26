@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,13 +18,17 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
 
     /**
      * Prefix search across name/email/phone/address. {@code pattern} must already have wildcards escaped.
-     * {@code favoritesOnly} and {@code emergencyOnly} limit it to the Favorites or Emergency page.
+     * {@code favoritesOnly} and {@code emergencyOnly} limit it to the Favorites or Emergency page, and a
+     * {@code tagId} other than 0 to contacts with that tag.
      */
     @Query("""
             SELECT c FROM Contact c
             WHERE c.user.id = :userId
               AND (:favoritesOnly = false OR c.favorite = true)
               AND (:emergencyOnly = false OR c.emergency = true)
+              AND (:tagId = 0 OR EXISTS (
+                    SELECT 1 FROM Contact tagged JOIN tagged.tags t
+                    WHERE tagged = c AND t.id = :tagId))
               AND (LOWER(c.firstName) LIKE LOWER(:pattern)
                OR LOWER(c.lastName)  LIKE LOWER(:pattern)
                OR LOWER(c.email)     LIKE LOWER(:pattern)
@@ -32,22 +37,31 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
             """)
     Page<Contact> searchByUserId(@Param("userId") Long userId, @Param("pattern") String pattern,
                                  @Param("favoritesOnly") boolean favoritesOnly,
-                                 @Param("emergencyOnly") boolean emergencyOnly, Pageable pageable);
+                                 @Param("emergencyOnly") boolean emergencyOnly,
+                                 @Param("tagId") long tagId, Pageable pageable);
 
     /**
      * The user's contacts; {@code favoritesOnly} limits it to starred ones (the Favorites page) and
-     * {@code emergencyOnly} to emergency contacts (the Emergency page).
+     * {@code emergencyOnly} to emergency contacts (the Emergency page). A {@code tagId} other than 0 limits it to
+     * contacts with that tag.
      */
     @Query("""
             SELECT c FROM Contact c
             WHERE c.user.id = :userId
               AND (:favoritesOnly = false OR c.favorite = true)
               AND (:emergencyOnly = false OR c.emergency = true)
+              AND (:tagId = 0 OR EXISTS (
+                    SELECT 1 FROM Contact tagged JOIN tagged.tags t
+                    WHERE tagged = c AND t.id = :tagId))
             """)
     Page<Contact> findForUser(@Param("userId") Long userId, @Param("favoritesOnly") boolean favoritesOnly,
-                              @Param("emergencyOnly") boolean emergencyOnly, Pageable pageable);
+                              @Param("emergencyOnly") boolean emergencyOnly, @Param("tagId") long tagId,
+                              Pageable pageable);
 
     long countByUser_Id(Long userId);
+
+    /** The user's live contacts among {@code ids}, for bulk actions. Others' and deleted contacts are left out. */
+    List<Contact> findByUser_IdAndIdIn(Long userId, Collection<Long> ids);
 
     long countByUser_IdAndFavoriteTrue(Long userId);
 

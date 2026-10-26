@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import ModalHeader from "./ModalHeader";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
+import { Label } from "@/components/ui/label";
 import EmergencyField from "./EmergencyField";
+import TagPicker from "../tags/TagPicker";
 import { getDuplicates, updateContact } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
@@ -23,6 +25,7 @@ export default function EditModal(props) {
     phoneNo: "",
     address: "",
     emergency: false,
+    tagIds: [],
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
@@ -43,6 +46,7 @@ export default function EditModal(props) {
   };
 
   const handleEmergencyChange = (checked) => setForm((prev) => ({ ...prev, emergency: checked }));
+  const handleTagsChange = (tagIds) => setForm((prev) => ({ ...prev, tagIds }));
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
@@ -67,7 +71,7 @@ export default function EditModal(props) {
         validation.data.email,
         validation.data.phoneNo,
         validation.data.address,
-        { allowDuplicate, emergency: form.emergency }
+        { allowDuplicate, emergency: form.emergency, tagIds: form.tagIds }
       );
       toast.success("Contact updated");
       props.getContacts();
@@ -96,6 +100,7 @@ export default function EditModal(props) {
         phoneNo: props.contactData.phone ?? "",
         address: props.contactData.address ?? "",
         emergency: Boolean(props.contactData.emergency),
+        tagIds: (props.contactData.tags ?? []).map((tag) => tag.id),
       });
     }
   }, [props.contactData]);
@@ -181,6 +186,13 @@ export default function EditModal(props) {
                   error={errors.address}
                   className="sm:col-span-2"
                 />
+
+                <div className="grid gap-2 sm:col-span-2">
+                  <Label htmlFor="tags">
+                    Tags <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <TagPicker id="tags" value={form.tagIds} onChange={handleTagsChange} disabled={loading} />
+                </div>
 
                 <EmergencyField
                   checked={form.emergency}

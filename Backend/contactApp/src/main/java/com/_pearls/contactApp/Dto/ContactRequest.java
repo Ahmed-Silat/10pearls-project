@@ -7,9 +7,14 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class ContactRequest {
+
+    /** Most tags one contact can have. */
+    public static final int MAX_TAGS = 20;
 
     @NotBlank(message = "firstName is required")
     @Size(max = 50, message = "firstName must be at most 50 characters")
@@ -34,6 +39,13 @@ public class ContactRequest {
      * keeps the current value, so older clients can't unmark a contact by accident.
      */
     private Boolean emergency;
+
+    /**
+     * The ids of the user's tags to put on the contact. Optional: a new contact without it has no tags, and an
+     * edit without it keeps the current tags; an empty list removes them all.
+     */
+    @Size(max = MAX_TAGS, message = "a contact can have at most 20 tags")
+    private List<Long> tagIds;
 
     /** Save even if another contact has the same phone or email (the user chose "Save anyway"). */
     private boolean allowDuplicate;

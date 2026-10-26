@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+import api from "./service/Constants";
+
+// Tests never talk to a real server: any API call a test didn't mock fails straight away.
+api.defaults.adapter = () => Promise.reject(new Error("Network requests are disabled in tests"));
 
 // jsdom is missing a few browser APIs that the shadcn/ui (Radix) components use for menus, selects and dialogs.
 class ResizeObserverStub {
