@@ -1,18 +1,10 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ChangePasswordModal from "./ChangePasswordModal";
 import { changePassword } from "../../service/ContactService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API call is mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/ContactService", () => ({
-  ...jest.requireActual("../../service/ContactService"),
-  changePassword: jest.fn(),
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  changePassword: vi.fn(),
 }));
 
 afterEach(() => localStorage.clear());
@@ -20,7 +12,7 @@ afterEach(() => localStorage.clear());
 test("stores the fresh token so this session stays signed in", async () => {
   localStorage.setItem("userData", JSON.stringify({ id: 1, firstName: "ali", token: "old-token" }));
   changePassword.mockResolvedValue({ token: "fresh-token", user: { id: 1 } });
-  const onClose = jest.fn();
+  const onClose = vi.fn();
   render(<ChangePasswordModal userId={1} onClose={onClose} />);
 
   const [current, next, again] = screen.getAllByPlaceholderText(/password/i);

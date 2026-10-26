@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import Modal from "../ui/Modal";
-import Button from "../button/Button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import ModalHeader from "./ModalHeader";
 import { deleteContact, getDuplicates, restoreContact } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
-import { TrashIcon } from "../icons/Icons";
 
 /** How long the "Contact deleted" toast, and its Undo button, stays on screen. */
 export const UNDO_TOAST_MS = 8000;
@@ -64,45 +70,27 @@ export default function DeleteModal(props) {
   };
 
   return (
-    <Modal onClose={close} titleId="delete-contact-title" panelClassName="sm:max-w-md">
-      <fieldset disabled={loading} className="min-w-0">
-        <div className="px-6 pt-6">
-          <div className="flex items-center gap-4">
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
-              <TrashIcon className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 id="delete-contact-title" className="text-lg font-semibold text-slate-900">
-                Delete Contact
-              </h3>
-              <p className="text-xs text-slate-500">You can restore it for 30 days.</p>
-            </div>
-          </div>
-          <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-600 ring-1 ring-slate-200">
-            This contact will move to <span className="font-semibold">Recently deleted</span>, where
-            you can restore it for 30 days. After that it&apos;s deleted permanently.
+    <AlertDialog open onOpenChange={(open) => !open && close()}>
+      <AlertDialogContent className="sm:max-w-md">
+        <fieldset disabled={loading} className="grid min-w-0 gap-4">
+          <ModalHeader alert title="Delete Contact" description="You can restore it for 30 days." />
+          <p className="text-sm text-muted-foreground">
+            This contact will move to <span className="font-medium text-foreground">Recently deleted</span>,
+            where you can restore it for 30 days. After that it&apos;s deleted permanently.
           </p>
           {serverError && (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+            <Alert variant="destructive">
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
           )}
-        </div>
-        <div className="mt-4 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-          <Button
-            name={loading ? "Deleting..." : "Delete"}
-            loading={loading}
-            onClick={deleteCurrentContact}
-            className="w-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 sm:w-auto"
-          />
-          <button
-            type="button"
-            data-autofocus
-            onClick={close}
-            className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            Cancel
-          </button>
-        </div>
-      </fieldset>
-    </Modal>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
+            <Button variant="destructive" loading={loading} onClick={deleteCurrentContact}>
+              {loading ? "Deleting..." : "Delete"}
+            </Button>
+          </AlertDialogFooter>
+        </fieldset>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

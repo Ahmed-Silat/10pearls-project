@@ -1,19 +1,11 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import SignUp from "./SignUp";
 import { signup } from "../../service/authService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API call is mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/authService", () => ({
-  ...jest.requireActual("../../service/authService"),
-  signup: jest.fn(),
+vi.mock("../../service/authService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  signup: vi.fn(),
 }));
 
 const fill = (label, value) =>
@@ -32,7 +24,7 @@ test("disables every input, button and link while the signup request is in fligh
   fill(/email address/i, "ali@example.com");
   fill(/^password/i, "Secret123");
   fill(/confirm password/i, "Secret123");
-  fireEvent.click(screen.getByRole("button", { name: "SIGNUP" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
 
   expect(await screen.findByRole("button", { name: /signing up/i })).toBeDisabled();
   for (const input of screen.getAllByRole("textbox")) expect(input).toBeDisabled();

@@ -1,13 +1,12 @@
-import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import Header, { LOGOUT_DELAY_MS } from "./Header";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; no API calls happen here.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
+// The header includes the sidebar, which loads its counts from the API; keep the tests off the network.
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getContactCounts: vi.fn(() => Promise.resolve({ all: 0, favorites: 0, emergency: 0, recentlyDeleted: 0 })),
 }));
 
 /** Prints the current URL query so tests can check what the header changed. */
@@ -64,15 +63,18 @@ test("typing a new search goes back to page 1", () => {
 });
 
 describe("signing out", () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
-  const signOut = () => {
-    fireEvent.click(screen.getByRole("button", { name: /open user menu/i }));
-    fireEvent.click(screen.getByRole("button", { name: /sign out/i }));
+  // The account menu opens on a real pointer press, so drive it with user-event (on the fake clock).
+  const signOut = async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(screen.getByRole("button", { name: /open user menu/i }));
+    // jsdom treats the open menu as "pointer-events: none" (Radix sets it on the page behind), so click directly.
+    fireEvent.click(screen.getByRole("menuitem", { name: /sign out/i }));
   };
 
-  test("shows the loader, then clears the session and goes to login", () => {
+  test("shows the loader, then clears the session and goes to login", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header />
@@ -80,13 +82,13 @@ describe("signing out", () => {
       </MemoryRouter>
     );
 
-    signOut();
+    await signOut();
 
     expect(screen.getByRole("status")).toHaveTextContent("Signing you out...");
     expect(localStorage.getItem("userData")).not.toBeNull();
     expect(screen.getByTestId("path")).toHaveTextContent("/");
 
-    act(() => jest.advanceTimersByTime(LOGOUT_DELAY_MS));
+    act(() => vi.advanceTimersByTime(LOGOUT_DELAY_MS));
 
     expect(localStorage.getItem("userData")).toBeNull();
     expect(screen.getByTestId("path")).toHaveTextContent("/login");
@@ -97,19 +99,21 @@ function CurrentPath() {
   return <div data-testid="path">{useLocation().pathname}</div>;
 }
 
-test("the account menu shows the signed-in user's full name and email", () => {
+test("the account menu shows the signed-in user's full name and email", async () => {
   localStorage.setItem(
     "userData",
     JSON.stringify({ id: "user-1", firstName: "ali", lastName: "khan", email: "ali.khan@example.com", token: "t" })
   );
   renderHeader("/");
+  // Found before opening: while the menu is open, the rest of the page is hidden from screen readers.
+  const trigger = screen.getByRole("button", { name: /open user menu/i });
 
-  fireEvent.click(screen.getByRole("button", { name: /open user menu/i }));
+  await userEvent.click(trigger);
 
   expect(screen.getByTestId("menu-user-name")).toHaveTextContent("ali khan");
   expect(screen.getByTestId("menu-user-email")).toHaveTextContent("ali.khan@example.com");
-  // Hovering the avatar also shows who is signed in.
-  expect(screen.getByRole("button", { name: /open user menu/i })).toHaveAttribute("title", "ali khan");
+  // The menu button itself also shows who is signed in.
+  expect(trigger).toHaveTextContent("ali khan");
 });
 
 test("the page layout includes the sidebar's section links", () => {
@@ -124,13 +128,24 @@ test("the page layout includes the sidebar's section links", () => {
   );
 });
 
-test("on phones, the ☰ menu shows the same sections", () => {
+test("the sidebar toggle collapses the sidebar to icons and back", () => {
   renderHeader("/");
+  const sidebar = () => document.querySelector("[data-variant=sidebar]");
+  // The top-bar button (the sidebar edge "rail" has the same label, for mouse users).
+  const toggle = () =>
+    screen.getAllByRole("button", { name: "Toggle Sidebar" }).find((b) => b.dataset.sidebar === "trigger");
+  expect(sidebar()).toHaveAttribute("data-state", "expanded");
 
-  fireEvent.click(screen.getByRole("button", { name: "Open main menu" }));
+  fireEvent.click(toggle());
+  expect(sidebar()).toHaveAttribute("data-state", "collapsed");
 
-  // One set in the (desktop) sidebar, one in the opened phone menu.
-  expect(screen.getAllByRole("navigation", { name: "Sections" })).toHaveLength(2);
+  fireEvent.click(toggle());
+  expect(sidebar()).toHaveAttribute("data-state", "expanded");
+});
+
+test("the top bar names the current page", () => {
+  renderHeader("/emergency");
+  expect(screen.getByText("Emergency", { selector: "[aria-current=page]:not(a)" })).toBeInTheDocument();
 });
 
 test("search also appears on the Favorites page", () => {

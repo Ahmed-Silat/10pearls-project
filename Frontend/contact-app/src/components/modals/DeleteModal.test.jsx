@@ -1,20 +1,12 @@
-import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Toaster, toast } from "sonner";
 import DeleteModal from "./DeleteModal";
 import { deleteContact, restoreContact } from "../../service/ContactService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API calls are mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/ContactService", () => ({
-  ...jest.requireActual("../../service/ContactService"),
-  deleteContact: jest.fn(),
-  restoreContact: jest.fn(),
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  deleteContact: vi.fn(),
+  restoreContact: vi.fn(),
 }));
 
 beforeAll(() => {
@@ -29,7 +21,7 @@ const deleteAndGetUndo = async (getContacts) => {
   render(
     <>
       <Toaster />
-      <DeleteModal contactId={10} onClose={jest.fn()} getContacts={getContacts} />
+      <DeleteModal contactId={10} onClose={vi.fn()} getContacts={getContacts} />
     </>
   );
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
@@ -38,7 +30,7 @@ const deleteAndGetUndo = async (getContacts) => {
 
 test("after deleting, the toast offers Undo, which restores the contact", async () => {
   restoreContact.mockResolvedValue({ id: 10 });
-  const getContacts = jest.fn();
+  const getContacts = vi.fn();
 
   const undo = await deleteAndGetUndo(getContacts);
   expect(deleteContact).toHaveBeenCalledWith(10);
@@ -53,13 +45,13 @@ test("after deleting, the toast offers Undo, which restores the contact", async 
 test("while undoing, the toast shows a loader until the contact is back", async () => {
   // Sonner keeps toasts from earlier tests in a shared store, so on-screen Undo buttons may belong to
   // another test. This test takes the Undo action from its own toast call and watches the toast calls.
-  const success = jest.spyOn(toast, "success");
-  const loading = jest.spyOn(toast, "loading");
+  const success = vi.spyOn(toast, "success");
+  const loading = vi.spyOn(toast, "loading");
   let finishRestoring;
   restoreContact.mockReturnValue(new Promise((resolve) => (finishRestoring = resolve)));
   deleteContact.mockResolvedValue();
-  const getContacts = jest.fn();
-  render(<DeleteModal contactId={10} onClose={jest.fn()} getContacts={getContacts} />);
+  const getContacts = vi.fn();
+  render(<DeleteModal contactId={10} onClose={vi.fn()} getContacts={getContacts} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   await waitFor(() => expect(success).toHaveBeenCalledWith("Moved to Recently deleted", expect.anything()));
@@ -89,15 +81,15 @@ test("if restoring fails, the user is told why", async () => {
     response: { data: { message: "This contact can no longer be restored" } },
   });
 
-  fireEvent.click(await deleteAndGetUndo(jest.fn()));
+  fireEvent.click(await deleteAndGetUndo(vi.fn()));
 
   expect(await screen.findByText("This contact can no longer be restored")).toBeInTheDocument();
 });
 
 test("if undoing would duplicate a newer contact, the error toast offers Restore anyway", async () => {
   // Watches the toast calls rather than the screen: Sonner keeps toasts from earlier tests around.
-  const success = jest.spyOn(toast, "success");
-  const error = jest.spyOn(toast, "error");
+  const success = vi.spyOn(toast, "success");
+  const error = vi.spyOn(toast, "error");
   deleteContact.mockResolvedValue();
   restoreContact
     .mockRejectedValueOnce({
@@ -110,8 +102,8 @@ test("if undoing would duplicate a newer contact, the error toast offers Restore
       },
     })
     .mockResolvedValueOnce({ id: 10 });
-  const getContacts = jest.fn();
-  render(<DeleteModal contactId={10} onClose={jest.fn()} getContacts={getContacts} />);
+  const getContacts = vi.fn();
+  render(<DeleteModal contactId={10} onClose={vi.fn()} getContacts={getContacts} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   await waitFor(() => expect(success).toHaveBeenCalledWith("Moved to Recently deleted", expect.anything()));

@@ -1,19 +1,11 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import AddContactModal from "./AddContactModal";
 import { checkDuplicates, createNewContact } from "../../service/ContactService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API calls are mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/ContactService", () => ({
-  ...jest.requireActual("../../service/ContactService"),
-  createNewContact: jest.fn(),
-  checkDuplicates: jest.fn(),
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  createNewContact: vi.fn(),
+  checkDuplicates: vi.fn(),
 }));
 
 const ALI = { id: 5, firstName: "ali", lastName: "khan", field: "phone" };
@@ -25,7 +17,7 @@ const duplicateError = (duplicates) => ({
 });
 
 const renderModal = () =>
-  render(<AddContactModal userId="user-1" onClose={jest.fn()} fetchContacts={jest.fn()} />);
+  render(<AddContactModal userId="user-1" onClose={vi.fn()} fetchContacts={vi.fn()} />);
 
 const fill = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
@@ -126,7 +118,7 @@ describe("emergency contact", () => {
   });
 
   test("opened from the Emergency page, it starts ticked", () => {
-    render(<AddContactModal userId="user-1" onClose={jest.fn()} fetchContacts={jest.fn()} defaultEmergency />);
+    render(<AddContactModal userId="user-1" onClose={vi.fn()} fetchContacts={vi.fn()} defaultEmergency />);
     expect(checkbox()).toBeChecked();
   });
 });

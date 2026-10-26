@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -9,18 +8,11 @@ import {
   restoreContact,
 } from "../../service/ContactService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API calls are mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/ContactService", () => ({
-  getDuplicates: jest.requireActual("../../service/ContactService").getDuplicates,
-  getRecentlyDeleted: jest.fn(),
-  restoreContact: jest.fn(),
-  deletePermanently: jest.fn(),
+vi.mock("../../service/ContactService", async (importOriginal) => ({
+  getDuplicates: (await importOriginal()).getDuplicates,
+  getRecentlyDeleted: vi.fn(),
+  restoreContact: vi.fn(),
+  deletePermanently: vi.fn(),
 }));
 
 beforeAll(() => {
@@ -30,7 +22,7 @@ beforeAll(() => {
     (() => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
 });
 
-afterEach(() => jest.resetAllMocks());
+afterEach(() => vi.resetAllMocks());
 
 const DAY = 24 * 60 * 60 * 1000;
 const deletedContact = (id, firstName, daysAgo) => ({
@@ -111,7 +103,7 @@ test("Delete forever asks first, and only deletes once confirmed", async () => {
   renderPage();
 
   fireEvent.click(within(await rowFor("ali khan")).getByRole("button", { name: "Delete forever" }));
-  const dialog = await screen.findByRole("dialog");
+  const dialog = await screen.findByRole("alertdialog");
   expect(within(dialog).getByText("Delete permanently?")).toBeInTheDocument();
   expect(deletePermanently).not.toHaveBeenCalled();
 
@@ -119,7 +111,7 @@ test("Delete forever asks first, and only deletes once confirmed", async () => {
 
   await waitFor(() => expect(deletePermanently).toHaveBeenCalledWith(1));
   expect(await screen.findByText("Contact deleted permanently")).toBeInTheDocument();
-  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
 });
 
 test("cancelling Delete forever keeps the contact", async () => {
@@ -127,9 +119,9 @@ test("cancelling Delete forever keeps the contact", async () => {
   renderPage();
 
   fireEvent.click(within(await rowFor("ali khan")).getByRole("button", { name: "Delete forever" }));
-  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancel" }));
 
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   expect(deletePermanently).not.toHaveBeenCalled();
 });
 

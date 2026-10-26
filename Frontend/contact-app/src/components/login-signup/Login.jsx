@@ -1,4 +1,7 @@
-import Button from "../button/Button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import AuthLayout from "./AuthLayout";
 import { login } from "../../service/authService";
 import HeadingAndText from "../heading-and-text/HeadingAndText";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +9,6 @@ import TextLink from "../ui/TextLink";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { UsersIcon } from "../icons/Icons";
 import { loginSchema } from "../../validation/LoginSchema";
 import { validateWith } from "../../validation/common";
 import { getApiErrorMessage, SESSION_EXPIRED_KEY } from "../../service/Constants";
@@ -69,24 +71,9 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-sky-50 to-slate-200 p-4">
-      <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl md:min-h-[560px]">
-        <div className="hidden w-1/2 flex-col justify-center bg-gradient-to-br from-sky-600 to-cyan-700 p-12 text-white md:flex">
-          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-            <UsersIcon className="h-8 w-8" />
-          </div>
-          <h2 className="text-3xl font-bold leading-tight">
-            Your contacts,
-            <br />
-            beautifully organized.
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-sky-100">
-            Keep everyone you know in one place. Search, sort and manage your
-            contacts in seconds.
-          </p>
-        </div>
-
-        <div className="flex w-full flex-col justify-center p-8 md:w-1/2 sm:p-12">
+    <AuthLayout>
+      <Card className="w-full max-w-sm">
+        <CardHeader>
           <HeadingAndText
             mainHeading="Login"
             prompt="Don't have an account yet?"
@@ -94,48 +81,47 @@ export default function Login() {
             pageName="Signup"
             disabled={loading}
           />
-
+        </CardHeader>
+        <CardContent>
           <form onSubmit={sendLoginData} noValidate>
-            <fieldset disabled={loading} className="min-w-0">
+            <fieldset disabled={loading} className="grid min-w-0 gap-4">
               <LabelWithInput
                 htmlFor="email"
                 labelName="Email Address"
                 inputType="text"
                 inputId="email"
-                placeholder="Enter your email"
+                placeholder="m@example.com"
                 onChange={handleEmailChange}
                 error={errors.email}
               />
 
-              <LabelWithInput
-                htmlFor="password"
-                labelName="Password"
-                inputType="password"
-                inputId="password"
-                placeholder="Enter your password"
-                onChange={handlePasswordChange}
-                error={errors.password}
-              />
-
-              <div className="-mt-1 mb-4 flex justify-end">
-                <TextLink to="/forgot-password" disabled={loading} className="text-sm">
+              <div className="grid gap-2">
+                <LabelWithInput
+                  htmlFor="password"
+                  labelName="Password"
+                  inputType="password"
+                  inputId="password"
+                  placeholder="Enter your password"
+                  onChange={handlePasswordChange}
+                  error={errors.password}
+                />
+                <TextLink to="/forgot-password" disabled={loading} className="ml-auto text-sm">
                   Forgot password?
                 </TextLink>
               </div>
 
-              <Button
-                type="submit"
-                name={loading ? "LOGGING IN..." : "LOGIN"}
-                loading={loading}
-                className="w-full bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-sky-600/25 hover:bg-sky-700"
-              />
+              <Button type="submit" loading={loading} className="w-full">
+                {loading ? "Logging in..." : "Log in"}
+              </Button>
             </fieldset>
             {serverError && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+              <Alert variant="destructive" className="mt-4">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
           </form>
-        </div>
-      </div>
-    </div>
+        </CardContent>
+      </Card>
+    </AuthLayout>
   );
 }

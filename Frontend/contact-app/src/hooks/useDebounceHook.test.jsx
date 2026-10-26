@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { useDebouncedValue } from "./useDebounceHook";
 
-beforeEach(() => jest.useFakeTimers());
-afterEach(() => jest.useRealTimers());
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
 
 test("waits for the delay before returning a new value", () => {
   const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 2000), {
@@ -12,7 +12,7 @@ test("waits for the delay before returning a new value", () => {
   rerender({ value: "ab" });
   expect(result.current).toBe("a");
 
-  act(() => jest.advanceTimersByTime(2000));
+  act(() => vi.advanceTimersByTime(2000));
   expect(result.current).toBe("ab");
 });
 
@@ -35,6 +35,6 @@ test("with immediateWhenEmpty, typing still waits for the delay", () => {
   rerender({ value: "s" });
   expect(result.current).toBe("");
 
-  act(() => jest.advanceTimersByTime(2000));
+  act(() => vi.advanceTimersByTime(2000));
   expect(result.current).toBe("s");
 });

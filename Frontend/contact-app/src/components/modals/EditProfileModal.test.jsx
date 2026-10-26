@@ -1,18 +1,10 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import EditProfileModal from "./EditProfileModal";
 import { updateUser } from "../../service/authService";
 
-// axios ships as an ES module that Create React App's Jest setup can't load; the API call is mocked below.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
-}));
-
-jest.mock("../../service/authService", () => ({
-  ...jest.requireActual("../../service/authService"),
-  updateUser: jest.fn(),
+vi.mock("../../service/authService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  updateUser: vi.fn(),
 }));
 
 const user = { id: 1, firstName: "Ali", lastName: "Khan", email: "ali@example.com" };

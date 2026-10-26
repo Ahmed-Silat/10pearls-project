@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import Modal from "../ui/Modal";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import ModalHeader from "./ModalHeader";
 import LabelWithInput from "../label-and-inputs/LabelWithInput";
 import EmergencyField from "./EmergencyField";
 import { getDuplicates, updateContact } from "../../service/ContactService";
 import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
-import { PencilIcon } from "../icons/Icons";
 import { createContactSchema } from "../../validation/createContactSchema";
 import { validateWith } from "../../validation/common";
 import { getApiErrorMessage } from "../../service/Constants";
-import Button from "../button/Button";
 import Spinner from "../ui/Spinner";
 
 export default function EditModal(props) {
@@ -100,35 +101,26 @@ export default function EditModal(props) {
   }, [props.contactData]);
 
   return (
-    <Modal onClose={close} titleId="edit-contact-title" panelClassName="sm:max-w-xl">
-      <form onSubmit={submit} noValidate>
-        <fieldset disabled={loading} className="min-w-0">
-          <div className="px-6 pt-6">
-            <div className="flex items-center gap-4">
-              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                <PencilIcon className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 id="edit-contact-title" className="text-lg font-semibold text-slate-900">
-                  Update Contact
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Edit the details of this contact.
-                </p>
-              </div>
-            </div>
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-xl">
+        <form onSubmit={submit} noValidate>
+          <fieldset disabled={loading} className="grid min-w-0 gap-4">
+            <ModalHeader
+              title="Update Contact"
+              description="Edit the details of this contact."
+            />
 
             {/* The modal opens straight away; the form appears once the contact has loaded. */}
             {isLoadingContact ? (
               <div
                 role="status"
-                className="flex min-h-[18rem] flex-col items-center justify-center gap-3 text-sky-600"
+                className="flex min-h-[18rem] flex-col items-center justify-center gap-3 text-muted-foreground"
               >
-                <Spinner className="h-7 w-7" />
-                <p className="text-sm font-medium text-slate-500">Loading contact details...</p>
+                <Spinner className="h-6 w-6" />
+                <p className="text-sm">Loading contact details...</p>
               </div>
             ) : (
-              <div className="mt-4 grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <LabelWithInput
                   htmlFor="firstName"
                   labelName="First Name"
@@ -204,49 +196,39 @@ export default function EditModal(props) {
               />
             )}
             {serverError && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-          </div>
 
-          <div className="mt-2 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row-reverse">
-            {confirmDuplicates ? (
-              <>
-                <Button
-                  name={loading ? "Updating..." : "Save anyway"}
-                  loading={loading}
-                  onClick={() => updateCurrentContact({ allowDuplicate: true })}
-                  className="w-full bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 sm:w-auto"
-                />
-                <button
-                  type="button"
-                  onClick={() => setConfirmDuplicates(null)}
-                  className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  Go back
-                </button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="submit"
-                  name={loading ? "Updating..." : "Update"}
-                  loading={loading}
-                  disabled={isLoadingContact}
-                  className="w-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:w-auto"
-                />
-                <button
-                  type="button"
-                  data-autofocus
-                  onClick={close}
-                  className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-        </fieldset>
-      </form>
-    </Modal>
+            <DialogFooter className="gap-2 sm:gap-0">
+              {confirmDuplicates ? (
+                <>
+                  <Button variant="outline" onClick={() => setConfirmDuplicates(null)}>
+                    Go back
+                  </Button>
+                  <Button
+                    variant="warning"
+                    loading={loading}
+                    onClick={() => updateCurrentContact({ allowDuplicate: true })}
+                  >
+                    {loading ? "Updating..." : "Save anyway"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" data-autofocus onClick={close}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" loading={loading} disabled={isLoadingContact}>
+                    {loading ? "Updating..." : "Update"}
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </fieldset>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

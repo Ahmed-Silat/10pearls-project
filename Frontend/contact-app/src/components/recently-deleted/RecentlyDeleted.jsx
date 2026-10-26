@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import Button from "../button/Button";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import Pagination from "../pagination/Pagination";
 import Spinner from "../ui/Spinner";
+import Hint from "../ui/Hint";
 import PermanentDeleteModal from "../modals/PermanentDeleteModal";
 import {
   deletePermanently,
@@ -12,7 +16,7 @@ import {
   restoreContact,
 } from "../../service/ContactService";
 import { getApiErrorMessage } from "../../service/Constants";
-import { ChevronLeftIcon, MailIcon, PhoneIcon, TrashIcon } from "../icons/Icons";
+import { ArrowLeftIcon, MailIcon, PhoneIcon, TrashIcon } from "../icons/Icons";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -96,121 +100,130 @@ export default function RecentlyDeleted() {
   const contacts = data?.contacts ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-sky-700 transition-colors hover:text-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-      >
-        <ChevronLeftIcon className="h-3 w-3" />
-        Back to contacts
-      </Link>
+    <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
+      <Button asChild variant="ghost" size="sm" className="-ml-3 text-muted-foreground">
+        <Link to="/">
+          <ArrowLeftIcon />
+          Back to contacts
+        </Link>
+      </Button>
 
-      <div className="mt-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+      <div className="mt-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
           Recently deleted
           {data?.totalContacts > 0 && (
-            <span className="ml-2 align-middle text-base font-semibold text-slate-400">
+            <span className="ml-2 align-middle text-base font-normal text-muted-foreground">
               ({data.totalContacts})
             </span>
           )}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Deleted contacts stay here for 30 days, then they&apos;re deleted permanently.
         </p>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-6">
         {isLoading && !data ? (
           <div role="status" className="flex flex-col items-center justify-center gap-3 py-20">
-            <Spinner className="h-8 w-8 text-sky-600" />
-            <p className="text-sm font-medium text-slate-500">Loading recently deleted contacts...</p>
+            <Spinner className="h-6 w-6 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading recently deleted contacts...</p>
           </div>
         ) : loadFailed && !data ? (
-          <div className="flex flex-col items-center gap-4 rounded-3xl bg-white py-16 text-center shadow-card ring-1 ring-slate-200/70">
-            <p className="text-sm text-slate-600">Couldn&apos;t load your recently deleted contacts.</p>
-            <Button
-              name="Try again"
-              onClick={load}
-              className="bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
-            />
-          </div>
+          <Card className="flex flex-col items-center gap-4 p-10 text-center">
+            <p className="text-sm text-muted-foreground">Couldn&apos;t load your recently deleted contacts.</p>
+            <Button variant="outline" onClick={load}>
+              Try again
+            </Button>
+          </Card>
         ) : contacts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 py-20">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <TrashIcon className="h-7 w-7 text-slate-400" />
+          <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <TrashIcon className="h-6 w-6 text-muted-foreground" />
             </span>
-            <h2 className="mt-4 text-lg font-semibold text-slate-700">Nothing here</h2>
-            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
+            <h2 className="mt-4 text-lg font-semibold">Nothing here</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
               Contacts you delete will appear here for 30 days.
             </p>
           </div>
         ) : (
-          <ul
-            aria-busy={isLoading}
-            className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-slate-200/70"
-          >
-            {contacts.map((contact) => {
-              const name = fullNameOf(contact);
-              const initials = `${contact.firstName?.[0] || ""}${contact.lastName?.[0] || ""}`.toUpperCase();
-              const timeLeft = timeLeftLabel(contact.deletesPermanentlyAt);
-              const expiresSoon = new Date(contact.deletesPermanentlyAt).getTime() - Date.now() < 3 * DAY_MS;
-              return (
-                <li
-                  key={contact.id}
-                  data-testid="deleted-contact"
-                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-base font-bold text-slate-500">
-                      {initials}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold capitalize text-slate-800" title={name}>
-                        {name}
-                      </p>
-                      <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
-                        {contact.phone && (
-                          <span className="inline-flex items-center gap-1">
-                            <PhoneIcon className="h-3 w-3" />
-                            {contact.phone}
-                          </span>
-                        )}
-                        {contact.email && (
-                          <span className="inline-flex min-w-0 items-center gap-1">
-                            <MailIcon className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{contact.email}</span>
-                          </span>
-                        )}
-                      </p>
-                      <p className={`mt-1 text-xs font-medium ${expiresSoon ? "text-amber-600" : "text-slate-400"}`}>
-                        Deleted{" "}
-                        {new Date(contact.deletedAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        · {timeLeft}
-                      </p>
+          <Card className="overflow-hidden">
+            <ul aria-busy={isLoading} className="divide-y">
+              {contacts.map((contact) => {
+                const name = fullNameOf(contact);
+                const initials = `${contact.firstName?.[0] || ""}${contact.lastName?.[0] || ""}`.toUpperCase();
+                const timeLeft = timeLeftLabel(contact.deletesPermanentlyAt);
+                const expiresSoon = new Date(contact.deletesPermanentlyAt).getTime() - Date.now() < 3 * DAY_MS;
+                return (
+                  <li
+                    key={contact.id}
+                    data-testid="deleted-contact"
+                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="text-sm font-medium text-muted-foreground">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <Hint label={name} align="start">
+                          <p className="truncate text-sm font-medium capitalize">{name}</p>
+                        </Hint>
+                        <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                          {contact.phone && (
+                            <span className="inline-flex items-center gap-1">
+                              <PhoneIcon className="h-3 w-3" />
+                              {contact.phone}
+                            </span>
+                          )}
+                          {contact.email && (
+                            <span className="inline-flex min-w-0 items-center gap-1">
+                              <MailIcon className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{contact.email}</span>
+                            </span>
+                          )}
+                        </p>
+                        <p
+                          className={cn(
+                            "mt-1 text-xs",
+                            expiresSoon ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                          )}
+                        >
+                          Deleted{" "}
+                          {new Date(contact.deletedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}{" "}
+                          · {timeLeft}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-shrink-0 gap-2">
-                    <Button
-                      name={restoringId === contact.id ? "Restoring..." : "Restore"}
-                      loading={restoringId === contact.id}
-                      disabled={restoringId !== null}
-                      onClick={() => restore(contact)}
-                      className="flex-1 bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 sm:flex-none"
-                    />
-                    <Button
-                      name="Delete forever"
-                      disabled={restoringId !== null}
-                      onClick={() => setConfirmingDelete(contact)}
-                      className="flex-1 px-4 py-2 text-sm font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50 sm:flex-none"
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="flex flex-shrink-0 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        loading={restoringId === contact.id}
+                        disabled={restoringId !== null}
+                        onClick={() => restore(contact)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        {restoringId === contact.id ? "Restoring..." : "Restore"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={restoringId !== null}
+                        onClick={() => setConfirmingDelete(contact)}
+                        className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive sm:flex-none"
+                      >
+                        Delete forever
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
         )}
       </div>
 

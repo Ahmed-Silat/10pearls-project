@@ -1,22 +1,15 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { getContactsByUserId } from "../../service/ContactService";
 
-jest.mock("../../service/ContactService");
+vi.mock("../../service/ContactService");
 
 // The real hook measures the screen, which jsdom does not have; use a fixed size per test.
 let mockCardsPerPage = 10;
-jest.mock("../../hooks/useCardsPerPage", () => ({
+vi.mock("../../hooks/useCardsPerPage", () => ({
   useCardsPerPage: () => ({ pageSize: mockCardsPerPage, ready: true, remeasure: () => {} }),
-}));
-
-// axios ships as an ES module that Create React App's Jest setup can't load; the API is mocked anyway.
-jest.mock("axios", () => ({
-  create: () => ({
-    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
-  }),
 }));
 
 const page = ({ contacts = [], currentPage = 1, totalPages = 1, totalContacts = 0, size = 10 }) => ({
@@ -83,8 +76,9 @@ test("changing the sort order goes back to page 1", async () => {
   renderDashboard("/?page=2");
   await screen.findByText("ali");
 
-  fireEvent.click(screen.getByRole("button", { name: "Sort contacts" }));
-  fireEvent.click(screen.getByRole("option", { name: "Name (Z–A)" }));
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("combobox", { name: "Sort contacts" }));
+  await user.click(screen.getByRole("option", { name: "Name (Z–A)" }));
 
   await waitFor(() =>
     expect(getContactsByUserId).toHaveBeenLastCalledWith("user-1", "Z-A", "", 1, 10, "all")
@@ -116,7 +110,7 @@ test("shows the pagination footer when contacts span more than one page", async 
 });
 
 test("clicking a page number loads that page", async () => {
-  window.scrollTo = jest.fn();
+  window.scrollTo = vi.fn();
   getContactsByUserId.mockResolvedValue(
     page({ contacts: [contact("c1", "ali")], currentPage: 1, totalPages: 3, totalContacts: 25 })
   );
