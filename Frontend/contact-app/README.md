@@ -39,7 +39,7 @@ To add another component (this project uses Tailwind CSS v3, so use shadcn CLI 2
 npx shadcn@2.3.0 add tooltip
 ```
 
-The theme colours (neutral zinc with a sky blue accent, in light and dark versions) are CSS variables in
+The theme colours (shadcn's neutral zinc palette, in light and dark versions) are CSS variables in
 `src/index.css`. The light/dark/system toggle is `src/components/theme/ModeToggle.jsx`; the choice is saved in
 the browser. The signed-in layout uses shadcn's Sidebar (`src/components/sidebar/Sidebar.jsx`, collapses with
 <kbd>Ctrl</kbd>+<kbd>B</kbd>) and the top bar in `src/components/header/Header.jsx`.
