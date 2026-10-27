@@ -21,7 +21,8 @@ import java.util.Map;
 
 /**
  * Per-IP limits on the public auth endpoints, so one client can't brute-force passwords or reset codes, or
- * flood people with reset emails. Per-account limits live in the services.
+ * flood people with reset emails, and on contact imports, which are heavy. Per-account limits live in the
+ * services.
  *
  * <p>Uses the connection's address. If the app is deployed behind a proxy or load balancer, set
  * {@code server.forward-headers-strategy=native} so this sees the real client IP instead of the proxy's.
@@ -39,7 +40,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/user/signup", new Limit(10, Duration.ofHours(1)),
             "/user/forgot-password", new Limit(5, Duration.ofMinutes(15)),
             "/user/verify-otp", new Limit(10, Duration.ofMinutes(15)),
-            "/user/reset-password", new Limit(10, Duration.ofMinutes(15)));
+            "/user/reset-password", new Limit(10, Duration.ofMinutes(15)),
+            // Each import is usually two requests (the preview, then the import itself).
+            "/contact/import", new Limit(30, Duration.ofHours(1)));
 
     static final String MESSAGE = "Too many attempts. Please wait a few minutes and try again.";
 

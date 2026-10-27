@@ -44,6 +44,15 @@ export {
   Building2 as CompanyIcon,
   Cake as BirthdayIcon,
   StickyNote as NotesIcon,
+  ArrowDownUp as ImportExportIcon,
+  Upload as UploadIcon,
+  Download as DownloadIcon,
+  FileSpreadsheet as SpreadsheetIcon,
+  Contact as VCardIcon,
+  FileUp as FileUploadIcon,
+  CircleCheck as SuccessIcon,
+  CircleAlert as ErrorIcon,
+  TriangleAlert as WarningIcon,
 } from "lucide-react";
 
 /** A filled star, for starred (favourite) contacts. */

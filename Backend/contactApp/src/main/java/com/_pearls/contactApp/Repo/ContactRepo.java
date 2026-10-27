@@ -66,6 +66,9 @@ public interface ContactRepo extends JpaRepository<Contact, Long>, JpaSpecificat
 
     long countByUser_Id(Long userId);
 
+    /** All of the user's contacts in name order, for exporting. */
+    List<Contact> findByUser_IdOrderByFirstNameAscLastNameAscIdAsc(Long userId);
+
     /** The user's live contacts among {@code ids}, for bulk actions. Others' and deleted contacts are left out. */
     List<Contact> findByUser_IdAndIdIn(Long userId, Collection<Long> ids);
 

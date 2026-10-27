@@ -135,11 +135,24 @@ public class ContactService {
     public ContactDto createContact(Long userId, ContactRequest request) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
+        Contact contact = buildNewContact(user, request);
+        rejectDuplicates(userId, NEW_CONTACT, contact.getPhone(), contact.getEmail(), request.isAllowDuplicate());
+        if (request.getTagIds() != null) {
+            contact.getTags().addAll(findOwnedTags(userId, request.getTagIds()));
+        }
+        return toDto(contactRepo.save(contact));
+    }
+
+    /**
+     * A new, unsaved contact from a request, cleaned up the same way for every way of adding one (the form and
+     * imports): names and emails trimmed and lower-cased, copies among the phone numbers and emails dropped, and
+     * so on. Its tags and the duplicate check are left to the caller.
+     */
+    Contact buildNewContact(User user, ContactRequest request) {
         String phone = trim(request.getPhone());
         List<ContactDetail> otherPhones = cleanPhones(phone, request.getAdditionalPhones());
         EmailsToSave emails = cleanEmails(request.getEmail(), request.getAdditionalEmails());
-        rejectDuplicates(userId, NEW_CONTACT, phone, emails.main(), request.isAllowDuplicate());
-        Contact contact = Contact.builder()
+        return Contact.builder()
                 .firstName(normalize(request.getFirstName()))
                 .lastName(normalize(request.getLastName()))
                 .email(emails.main())
@@ -151,10 +164,8 @@ public class ContactService {
                 .additionalPhones(new ArrayList<>(otherPhones))
                 .additionalEmails(new ArrayList<>(emails.others()))
                 .emergency(Boolean.TRUE.equals(request.getEmergency()))
-                .tags(request.getTagIds() == null ? new HashSet<>() : findOwnedTags(userId, request.getTagIds()))
                 .user(user)
                 .build();
-        return toDto(contactRepo.save(contact));
     }
 
     @Transactional
