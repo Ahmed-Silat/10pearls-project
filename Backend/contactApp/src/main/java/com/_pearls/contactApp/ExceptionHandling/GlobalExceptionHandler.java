@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -100,6 +103,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<Object> handleUnreadable(Exception ex) {
         return error(HttpStatus.BAD_REQUEST, "Malformed request body or parameters");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Object> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return error(HttpStatus.PAYLOAD_TOO_LARGE, "That file is too big. Choose a file under 5 MB.");
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<Object> handleMissingPart(MissingServletRequestPartException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Choose a file to upload");
+    }
+
+    /** E.g. an upload that isn't sent as multipart/form-data. */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<Object> handleMultipart(MultipartException ex) {
+        log.warn("Bad upload: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, "The file couldn't be read. Please try again.");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

@@ -27,11 +27,14 @@ import {
   SortZAIcon,
   StarIcon,
   TagIcon,
+  UploadIcon,
   UsersIcon,
 } from "../icons/Icons";
 import { cn } from "@/lib/utils";
 import { tagDotClass } from "../tags/tagColors";
 import BulkActionBar from "./BulkActionBar";
+import ImportExportMenu from "../import-export/ImportExportMenu";
+import ImportContactsDialog from "../import-export/ImportContactsDialog";
 
 /** How long typing must pause before searching: short enough to feel instant, long enough to skip most keystrokes. */
 export const SEARCH_DEBOUNCE_MS = 500;
@@ -103,6 +106,7 @@ export default function Dashboard({ view = "all", tag }) {
   const EmptyIcon = section.Icon;
   const [contact, setContact] = useState([]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [paginationData, setPaginationData] = useState();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -323,6 +327,8 @@ export default function Dashboard({ view = "all", tag }) {
             </Button>
           )}
 
+          <ImportExportMenu onImport={() => setIsImportOpen(true)} className="w-full flex-shrink-0 sm:w-auto" />
+
           <Button onClick={openAddContactModal} className="w-full flex-shrink-0 sm:w-auto">
             <PlusIcon />
             Add Contact
@@ -401,15 +407,25 @@ export default function Dashboard({ view = "all", tag }) {
             emptyState(
               UsersIcon,
               "No contacts yet",
-              "Get started by adding your first contact to your address book.",
-              <Button onClick={openAddContactModal}>
-                <PlusIcon />
-                Add your first contact
-              </Button>
+              "Get started by adding your first contact, or bring them all in from your phone or another app.",
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button onClick={openAddContactModal}>
+                  <PlusIcon />
+                  Add your first contact
+                </Button>
+                <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+                  <UploadIcon />
+                  Import contacts
+                </Button>
+              </div>
             )
           )}
         </div>
       </div>
+
+      {isImportOpen && (
+        <ImportContactsDialog onClose={() => setIsImportOpen(false)} onImported={() => loadContacts()} />
+      )}
 
       {isAddContactModalOpen && (
         <AddContactModal
