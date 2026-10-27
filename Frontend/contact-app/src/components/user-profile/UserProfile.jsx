@@ -1,3 +1,4 @@
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import {
 } from "../icons/Icons";
 
 const UserProfile = () => {
+  useDocumentTitle("Profile");
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] =
     useState(false);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);

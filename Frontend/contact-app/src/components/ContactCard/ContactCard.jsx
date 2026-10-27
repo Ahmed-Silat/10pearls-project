@@ -313,6 +313,7 @@ const ContactCard = (props) => {
         <DeleteModal
           onClose={closeDeleteModal}
           contactId={props.contactId}
+          contactName={fullName}
           getContacts={props.fetchContacts}
         />
       )}

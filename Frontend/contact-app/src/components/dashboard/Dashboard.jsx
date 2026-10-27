@@ -15,6 +15,7 @@ import AddContactModal from "../modals/AddContactModal";
 import { Link, useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebounceHook";
 import { useCardsPerPage } from "../../hooks/useCardsPerPage";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import Pagination from "../pagination/Pagination";
 import Spinner from "../ui/Spinner";
 import { toast } from "sonner";
@@ -45,12 +46,14 @@ const SORT_OPTIONS = [
 ];
 
 /**
- * The text and icons for each section. `empty` is shown when the section has no contacts yet; the All contacts
- * page has its own empty state with an Add button instead.
+ * The text and icons for each section. `tabTitle` is the browser tab's title when it differs from `title`.
+ * `empty` is shown when the section has no contacts yet; the All contacts page has its own empty state with an
+ * Add button instead.
  */
 const VIEWS = {
   all: {
     title: "My Contacts",
+    tabTitle: "Contacts",
     subtitle: "Manage, search and organize everyone you know.",
     noun: "contacts",
     Icon: UsersIcon,
@@ -67,6 +70,7 @@ const VIEWS = {
   },
   emergency: {
     title: "Emergency",
+    tabTitle: "Emergency contacts",
     subtitle: "The people to call first when something goes wrong.",
     noun: "emergency contacts",
     Icon: EmergencyIcon,
@@ -128,6 +132,22 @@ export default function Dashboard({ view = "all", tag }) {
   const isSearchPending = search !== debouncedSearchTerm;
   const isBusy = isLoading || isSearchPending;
   const loadingLabel = search ? "Searching..." : "Loading contacts...";
+
+  useDocumentTitle(section.tabTitle ?? section.title);
+
+  // How many contacts this page has in total ("24"), or how many match the search ("3 results"). Hidden until
+  // the first load, and while a new search is pending, so an out-of-date number is never shown. Screen readers
+  // hear "24 contacts" rather than a bare number.
+  const total = paginationData?.totalContacts;
+  const countLabel =
+    total === undefined || isSearchPending ? null : debouncedSearchTerm ? (
+      `${total.toLocaleString()} ${total === 1 ? "result" : "results"}`
+    ) : (
+      <>
+        {total.toLocaleString()}
+        <span className="sr-only"> {section.noun}</span>
+      </>
+    );
 
   // Selecting contacts for bulk actions. "Select" turns on the checkboxes; ticking any keeps them on.
   const [selectMode, setSelectMode] = useState(false);
@@ -280,13 +300,21 @@ export default function Dashboard({ view = "all", tag }) {
   return (
     <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
-            {view === "tag" && (
-              <span aria-hidden="true" className={cn("h-3 w-3 flex-shrink-0 rounded-full", tagDotClass(tag?.color))} />
+        <div className="min-w-0">
+          {/* The count sits next to the heading rather than inside it, so the heading still reads "Favorites". */}
+          <div className="flex items-center gap-2.5">
+            <h1 className="flex min-w-0 items-center gap-2.5 text-2xl font-semibold tracking-tight">
+              {view === "tag" && (
+                <span aria-hidden="true" className={cn("h-3 w-3 flex-shrink-0 rounded-full", tagDotClass(tag?.color))} />
+              )}
+              <span className="min-w-0 truncate">{section.title}</span>
+            </h1>
+            {countLabel && (
+              <span className="flex-shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium tabular-nums text-muted-foreground">
+                {countLabel}
+              </span>
             )}
-            <span className="min-w-0 truncate">{section.title}</span>
-          </h1>
+          </div>
           <p className="text-sm text-muted-foreground">{section.subtitle}</p>
         </div>
 

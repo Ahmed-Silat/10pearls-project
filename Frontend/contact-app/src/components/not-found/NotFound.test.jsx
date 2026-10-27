@@ -24,3 +24,8 @@ test("sends signed-out users to the login page", () => {
 
   expect(screen.getByRole("link", { name: /go to login/i })).toHaveAttribute("href", "/login");
 });
+
+test("the browser tab says the page wasn't found", () => {
+  renderNotFound();
+  expect(document.title).toBe("Page not found · ContactHub");
+});

@@ -40,9 +40,14 @@ const undoDelete = async (contactId, reloadContacts, { allowDuplicate = false } 
   }
 };
 
+/**
+ * Asks before moving a contact to Recently deleted. `contactName` is shown in the question ("Delete Ali Khan?"),
+ * so it's clear which contact is about to go.
+ */
 export default function DeleteModal(props) {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const name = props.contactName?.trim();
 
   // The modal cannot be closed while the delete is in progress.
   const close = () => {
@@ -73,10 +78,27 @@ export default function DeleteModal(props) {
     <AlertDialog open onOpenChange={(open) => !open && close()}>
       <AlertDialogContent className="sm:max-w-md">
         <fieldset disabled={loading} className="grid min-w-0 gap-4">
-          <ModalHeader alert title="Delete Contact" description="You can restore it for 30 days." />
-          <p className="text-sm text-muted-foreground">
-            This contact will move to <span className="font-medium text-foreground">Recently deleted</span>,
-            where you can restore it for 30 days. After that it&apos;s deleted permanently.
+          <ModalHeader
+            alert
+            title={
+              name ? (
+                <span className="[overflow-wrap:anywhere]">
+                  Delete <span className="capitalize">{name}</span>?
+                </span>
+              ) : (
+                "Delete this contact?"
+              )
+            }
+            description="You can restore it for 30 days."
+          />
+          <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+            {name ? (
+              <span className="font-medium capitalize text-foreground">{name}</span>
+            ) : (
+              "This contact"
+            )}{" "}
+            will move to <span className="font-medium text-foreground">Recently deleted</span>, where you can
+            restore it for 30 days. After that it&apos;s deleted permanently.
           </p>
           {serverError && (
             <Alert variant="destructive">

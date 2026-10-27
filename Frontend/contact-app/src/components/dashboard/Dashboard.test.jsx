@@ -226,3 +226,53 @@ describe("Emergency page", () => {
     expect(screen.getByRole("checkbox", { name: "Emergency contact" })).toBeChecked();
   });
 });
+
+describe("the number of contacts", () => {
+  test("shows how many contacts there are in all, next to the heading", async () => {
+    getContactsByUserId.mockResolvedValue(
+      page({ contacts: [contact("c1", "ali")], totalContacts: 1234, totalPages: 124 })
+    );
+
+    renderDashboard("/");
+
+    // Beside the heading, which still reads just "My Contacts"; screen readers hear "1,234 contacts".
+    expect(await screen.findByText("1,234")).toHaveTextContent("1,234 contacts");
+    expect(screen.getByRole("heading", { name: "My Contacts" })).toBeInTheDocument();
+    await waitForIdle();
+  });
+
+  test("while searching, says how many match", async () => {
+    getContactsByUserId.mockResolvedValue(page({ contacts: [contact("c1", "ali")], totalContacts: 1 }));
+
+    renderDashboard("/?search=ali");
+
+    expect(await screen.findByText("1 result")).toBeInTheDocument();
+    await waitForIdle();
+  });
+
+  test("is hidden until the contacts have loaded", () => {
+    getContactsByUserId.mockReturnValue(new Promise(() => {}));
+
+    renderDashboard("/");
+
+    expect(screen.getByRole("heading", { name: "My Contacts" })).toBeInTheDocument();
+  });
+});
+
+test("the browser tab is titled after the section", async () => {
+  getContactsByUserId.mockResolvedValue(page({}));
+
+  const { unmount } = render(
+    <MemoryRouter initialEntries={["/emergency"]}>
+      <Dashboard view="emergency" />
+    </MemoryRouter>
+  );
+
+  expect(document.title).toBe("Emergency contacts · ContactHub");
+  await waitForIdle();
+  unmount();
+
+  renderDashboard("/");
+  expect(document.title).toBe("Contacts · ContactHub");
+  await waitForIdle();
+});

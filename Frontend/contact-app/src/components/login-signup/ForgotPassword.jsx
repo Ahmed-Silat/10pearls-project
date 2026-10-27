@@ -1,3 +1,4 @@
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ const STEPS = [
 ];
 
 export default function ForgotPassword() {
+  useDocumentTitle("Forgot password");
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState("");
