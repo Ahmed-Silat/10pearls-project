@@ -6,13 +6,27 @@ export const emailField = z
   .min(1, "Email is required")
   .email("Enter a valid email address");
 
-export const passwordField = z
-  .string()
-  .min(1, "Password is required")
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Password must contain an uppercase letter")
-  .regex(/[a-z]/, "Password must contain a lowercase letter")
-  .regex(/[0-9]/, "Password must contain a number");
+/**
+ * What a password needs. The checklist under password fields (`label`) and the form validation (`message`) both
+ * use this list, so they always agree. (The backend only checks the length: 8 to 72 characters.)
+ */
+export const PASSWORD_RULES = [
+  { id: "length", label: "At least 8 characters", message: "Password must be at least 8 characters", test: (v) => v.length >= 8 },
+  { id: "upper", label: "An uppercase letter", message: "Password must contain an uppercase letter", test: (v) => /[A-Z]/.test(v) },
+  { id: "lower", label: "A lowercase letter", message: "Password must contain a lowercase letter", test: (v) => /[a-z]/.test(v) },
+  { id: "number", label: "A number", message: "Password must contain a number", test: (v) => /[0-9]/.test(v) },
+];
+
+/** The backend's limit (bcrypt only reads the first 72 bytes). Too rare to list in the checklist. */
+export const PASSWORD_MAX_LENGTH = 72;
+
+export const passwordField = PASSWORD_RULES.reduce(
+  (field, rule) => field.refine(rule.test, rule.message),
+  z
+    .string()
+    .min(1, "Password is required")
+    .max(PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} characters`)
+);
 
 /**
  * 7–15 digits, judged by the digits alone so spaces, dashes, dots and brackets don't count towards the length

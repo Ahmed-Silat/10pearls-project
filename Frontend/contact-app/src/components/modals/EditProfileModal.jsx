@@ -9,16 +9,18 @@ import { updateUser } from "../../service/authService";
 import { getApiErrorMessage } from "../../service/Constants";
 import { updateUserSchema } from "../../validation/updateUserSchema";
 import { validateWith } from "../../validation/common";
+import { useUnsavedChangesGuard } from "../../hooks/useUnsavedChangesGuard";
 
 export default function EditProfileModal(props) {
-  const [form, setForm] = useState({
+  const [initialForm] = useState(() => ({
     firstName: props.user.firstName ?? "",
     lastName: props.user.lastName ?? "",
     email: props.user.email ?? "",
     phoneNo: props.user.phone ?? "",
     address: props.user.address ?? "",
     currentPassword: "",
-  });
+  }));
+  const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,10 +34,13 @@ export default function EditProfileModal(props) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  // The modal cannot be closed while a save is in progress.
-  const close = () => {
-    if (!loading) props.onClose();
-  };
+  // Cancel, Escape and clicking outside ask before throwing away edits (spaces alone don't count). Not while
+  // saving.
+  const { requestClose: close, discardDialog } = useUnsavedChangesGuard({
+    dirty: Object.keys(initialForm).some((field) => form[field].trim() !== initialForm[field].trim()),
+    busy: loading,
+    onClose: props.onClose,
+  });
 
   const updateProfile = async (event) => {
     event.preventDefault();
@@ -182,6 +187,7 @@ export default function EditProfileModal(props) {
             </DialogFooter>
           </fieldset>
         </form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );

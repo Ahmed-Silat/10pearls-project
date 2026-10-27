@@ -4,11 +4,14 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import Hint from "../ui/Hint";
 import { EyeIcon, EyeOffIcon } from "../icons/Icons";
+import { PASSWORD_RULES } from "../../validation/common";
+import PasswordChecklist from "./PasswordChecklist";
 
 /**
  * A form field in shadcn/ui style: Label, Input and an error message underneath. Optional fields say so in the
  * label; password fields get a show/hide button. Place several in a `grid gap-4` (no outer margin here).
- * `inputProps` are passed on to the input (e.g. `max` for a date).
+ * `inputProps` are passed on to the input (e.g. `max` for a date). `showPasswordRules` lists the password rules
+ * under a new-password field and ticks them off as they're met (needs `value`).
  */
 export default function LabelWithInput(props) {
   const {
@@ -24,12 +27,17 @@ export default function LabelWithInput(props) {
     error,
     optional = false,
     inputProps = {},
+    showPasswordRules = false,
   } = props;
 
   const isPassword = inputType === "password";
   const [visible, setVisible] = useState(false);
   const fieldType = isPassword && visible ? "text" : inputType;
-  const errorId = error ? `${inputId}-error` : undefined;
+  const rulesId = showPasswordRules ? `${inputId}-rules` : undefined;
+  // A broken rule is already shown in red in the checklist, so it isn't repeated underneath.
+  const errorIsARule = showPasswordRules && PASSWORD_RULES.some((rule) => rule.message === error);
+  const errorId = error && !errorIsARule ? `${inputId}-error` : undefined;
+  const describedBy = [rulesId, errorId].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -47,7 +55,7 @@ export default function LabelWithInput(props) {
           onChange={onChange}
           onBlur={onBlur}
           aria-invalid={error ? true : undefined}
-          aria-describedby={errorId}
+          aria-describedby={describedBy}
           className={cn(error && "border-destructive focus-visible:ring-destructive", isPassword && "pr-10")}
         />
         {isPassword && (
@@ -63,7 +71,8 @@ export default function LabelWithInput(props) {
           </Hint>
         )}
       </div>
-      {error && (
+      {showPasswordRules && <PasswordChecklist id={rulesId} password={value ?? ""} showErrors={Boolean(error)} />}
+      {errorId && (
         <p id={errorId} className="text-[0.8rem] font-medium text-destructive">
           {error}
         </p>

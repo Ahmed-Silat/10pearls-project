@@ -153,8 +153,10 @@ export default function SignUp() {
                 inputType="password"
                 inputId="password"
                 placeholder="Enter password"
+                value={password}
                 onChange={handlePasswordChange}
                 error={errors.password}
+                showPasswordRules
               />
               <LabelWithInput
                 htmlFor="confirmPassword"

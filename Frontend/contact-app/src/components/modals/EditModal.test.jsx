@@ -89,3 +89,20 @@ test("shows whether it's an emergency contact, and saves the change", async () =
   await waitFor(() => expect(updateContact).toHaveBeenCalledTimes(1));
   expect(updateContact.mock.calls[0][6]).toEqual({ allowDuplicate: false, emergency: false, tagIds: [], ...NO_DETAILS });
 });
+
+test("closing without edits doesn't ask; after an edit it asks before discarding", async () => {
+  const onClose = vi.fn();
+  render(
+    <EditModal contactData={{ id: 7, firstName: "zed", phone: "0300 1234567" }} onClose={onClose} getContacts={vi.fn()} />
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText("Discard your changes?")).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText(/phone no/i), { target: { value: "0311 7654321" } });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  expect(await screen.findByText("Discard your changes?")).toBeInTheDocument();
+  expect(onClose).toHaveBeenCalledTimes(1);
+});

@@ -100,6 +100,7 @@ export default function ChangePasswordModal(props) {
                 value={newPassword}
                 onChange={handleNewPasswordChange}
                 error={errors.newPassword}
+                showPasswordRules
               />
 
               <LabelWithInput

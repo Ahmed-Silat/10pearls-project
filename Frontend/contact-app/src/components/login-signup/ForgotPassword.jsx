@@ -237,6 +237,7 @@ export default function ForgotPassword() {
                   value={newPassword}
                   onChange={handleChange("newPassword", setNewPassword)}
                   error={errors.newPassword}
+                  showPasswordRules
                 />
                 <LabelWithInput
                   htmlFor="confirmPassword"

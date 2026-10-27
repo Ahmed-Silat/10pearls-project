@@ -8,7 +8,14 @@ import { useDuplicateCheck } from "../../hooks/useDuplicateCheck";
 import DuplicateNotice from "../ui/DuplicateNotice";
 import ContactFormFields from "./ContactFormFields";
 import ModalHeader from "./ModalHeader";
-import { EMPTY_CONTACT_FORM, richerFields, validateContactForm, withoutErrorsFor } from "./contactForm";
+import {
+  EMPTY_CONTACT_FORM,
+  hasFormChanged,
+  richerFields,
+  validateContactForm,
+  withoutErrorsFor,
+} from "./contactForm";
+import { useUnsavedChangesGuard } from "../../hooks/useUnsavedChangesGuard";
 import { getApiErrorMessage } from "../../service/Constants";
 
 /**
@@ -16,11 +23,12 @@ import { getApiErrorMessage } from "../../service/Constants";
  * with those tags picked (used on a tag's page).
  */
 export default function AddContactModal(props) {
-  const [form, setForm] = useState(() => ({
+  const [initialForm] = useState(() => ({
     ...EMPTY_CONTACT_FORM,
     emergency: Boolean(props.defaultEmergency),
     tagIds: props.defaultTagIds ?? [],
   }));
+  const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,10 +45,12 @@ export default function AddContactModal(props) {
 
   const checkPhoneAndEmail = () => checkForDuplicates({ phone: form.phoneNo, email: form.email });
 
-  // The modal cannot be closed while a save is in progress.
-  const close = () => {
-    if (!loading) props.onClose();
-  };
+  // Cancel, Escape and clicking outside ask before throwing away what was typed. Not while saving.
+  const { requestClose: close, discardDialog } = useUnsavedChangesGuard({
+    dirty: hasFormChanged(initialForm, form),
+    busy: loading,
+    onClose: props.onClose,
+  });
 
   const addNewContact = async ({ allowDuplicate = false } = {}) => {
     const validation = validateContactForm(form);
@@ -131,6 +141,7 @@ export default function AddContactModal(props) {
             </DialogFooter>
           </fieldset>
         </form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );

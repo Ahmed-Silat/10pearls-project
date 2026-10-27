@@ -67,6 +67,25 @@ export const validateContactForm = (form) => {
   };
 };
 
+/**
+ * What the form would save, for telling whether anything changed: spaces trimmed, empty extra rows and row keys
+ * left out, tags in a fixed order. Adding an empty phone row, or typing a space, isn't a change.
+ */
+const snapshot = (form) =>
+  JSON.stringify({
+    ...Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, typeof value === "string" ? value.trim() : value])
+    ),
+    additionalPhones: withoutBlankRows(trimmedRows(form.additionalPhones)),
+    additionalEmails: withoutBlankRows(trimmedRows(form.additionalEmails)),
+    tagIds: [...form.tagIds].sort((a, b) => a - b),
+  });
+
+const trimmedRows = (rows) => rows.map((row) => ({ ...row, value: row.value.trim() }));
+
+/** Whether `form` would save something different from `initial`. */
+export const hasFormChanged = (initial, form) => snapshot(initial) !== snapshot(form);
+
 /** `errors` without the ones for `field` (for a list such as additionalPhones, also those of its rows). */
 export const withoutErrorsFor = (errors, field) =>
   Object.fromEntries(

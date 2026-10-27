@@ -45,3 +45,53 @@ test("tells visitors who already have an account to log in", () => {
   expect(screen.getByText(/already have an account\?/i)).toBeInTheDocument();
   expect(screen.queryByText(/doesn't have an account/i)).not.toBeInTheDocument();
 });
+
+describe("password checklist", () => {
+  const renderSignUp = () =>
+    render(
+      <MemoryRouter>
+        <SignUp />
+      </MemoryRouter>
+    );
+  const rule = (label) => screen.getByText(label).closest("li");
+
+  test("ticks each rule off while the password is typed", () => {
+    renderSignUp();
+    expect(rule("At least 8 characters")).toHaveTextContent("(missing)");
+
+    fill(/^password/i, "abc1");
+    expect(rule("A lowercase letter")).toHaveTextContent("(done)");
+    expect(rule("A number")).toHaveTextContent("(done)");
+    expect(rule("An uppercase letter")).toHaveTextContent("(missing)");
+    expect(rule("At least 8 characters")).toHaveTextContent("(missing)");
+
+    fill(/^password/i, "Abcdefg1");
+    for (const label of ["At least 8 characters", "An uppercase letter", "A lowercase letter", "A number"]) {
+      expect(rule(label)).toHaveTextContent("(done)");
+    }
+  });
+
+  test("after a failed submit, the missing rules turn red instead of repeating the error under the field", () => {
+    renderSignUp();
+    fill(/first name/i, "Ali");
+    fill(/email address/i, "ali@example.com");
+    fill(/^password/i, "abcdefgh");
+    fill(/confirm password/i, "abcdefgh");
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
+
+    expect(rule("An uppercase letter")).toHaveClass("text-destructive");
+    expect(rule("A lowercase letter")).not.toHaveClass("text-destructive");
+    expect(screen.queryByText("Password must contain an uppercase letter")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^password/i)).toHaveAttribute("aria-invalid", "true");
+    expect(signup).not.toHaveBeenCalled();
+  });
+
+  test("an empty password still says it's required", () => {
+    renderSignUp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
+
+    expect(screen.getByText("Password is required")).toBeInTheDocument();
+  });
+});
