@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import AddContactModal from "./AddContactModal";
 import { checkDuplicates, createNewContact } from "../../service/ContactService";
 
@@ -207,4 +208,95 @@ describe("emergency contact", () => {
     render(<AddContactModal userId="user-1" onClose={vi.fn()} fetchContacts={vi.fn()} defaultEmergency />);
     expect(checkbox()).toBeChecked();
   });
+});
+
+describe("unsaved changes", () => {
+  const renderWithClose = () => {
+    const onClose = vi.fn();
+    render(<AddContactModal userId="user-1" onClose={onClose} fetchContacts={vi.fn()} />);
+    return onClose;
+  };
+  const cancel = () => fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  test("an untouched form closes straight away", () => {
+    const onClose = renderWithClose();
+    cancel();
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByText("Discard your changes?")).not.toBeInTheDocument();
+  });
+
+  test("an empty extra phone row, or just spaces, doesn't count as a change", () => {
+    const onClose = renderWithClose();
+    addRow("phone number");
+    fill(/company/i, "   ");
+    cancel();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test("after typing, Cancel asks first; Keep editing keeps the form and what was typed", async () => {
+    const onClose = renderWithClose();
+    fill(/first name/i, "Zed");
+
+    cancel();
+
+    expect(await screen.findByText("Discard your changes?")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    await waitFor(() => expect(screen.queryByText("Discard your changes?")).not.toBeInTheDocument());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/first name/i)).toHaveValue("Zed");
+  });
+
+  test("Discard closes the form", async () => {
+    const onClose = renderWithClose();
+    fill(/first name/i, "Zed");
+    cancel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test("Escape asks too", async () => {
+    const onClose = renderWithClose();
+    fill(/first name/i, "Zed");
+
+    fireEvent.keyDown(screen.getByLabelText(/first name/i), { key: "Escape" });
+
+    expect(await screen.findByText("Discard your changes?")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test("closing the browser tab with unsaved changes asks too", () => {
+    renderWithClose();
+    const before = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(before()).toBe(false);
+
+    fill(/first name/i, "Zed");
+
+    expect(before()).toBe(true);
+  });
+});
+
+test("with real pointer clicks, Keep editing returns to the form, and clicking outside the form asks first", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  render(<AddContactModal userId="user-1" onClose={onClose} fetchContacts={vi.fn()} />);
+  await user.type(screen.getByLabelText(/first name/i), "Zed");
+
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+
+  await waitFor(() => expect(screen.queryByText("Discard your changes?")).not.toBeInTheDocument());
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+
+  await user.click(screen.getByRole("dialog").previousElementSibling); // the dimmed overlay behind the form
+  expect(await screen.findByText("Discard your changes?")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Discard" }));
+  expect(onClose).toHaveBeenCalledTimes(1);
 });

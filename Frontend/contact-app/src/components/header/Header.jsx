@@ -36,8 +36,19 @@ const PAGE_TITLES = {
 
 export const LOGOUT_DELAY_MS = 800;
 
-/** The contact search box in the top bar (and in the extra row under it on phones). */
-function SearchBox({ inputRef, value, onChange, onKeyDown, onClear }) {
+/** The key that jumps to the search box from anywhere on a list page. */
+export const SEARCH_SHORTCUT = "/";
+
+/** Whether a key press is going into a text field (or other control) rather than the page. */
+const isTypingInto = (target) =>
+  target instanceof Element &&
+  (target.isContentEditable || Boolean(target.closest("input, textarea, select, [contenteditable='true']")));
+
+/**
+ * The contact search box in the top bar (and in the extra row under it on phones). `showShortcut` shows a small
+ * "/" key inside the empty box, as a reminder of the shortcut; it hides while the box has focus or text.
+ */
+function SearchBox({ inputRef, value, onChange, onKeyDown, onClear, showShortcut = false, autoFocus = false }) {
   return (
     <div className="relative w-full">
       <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -47,10 +58,21 @@ function SearchBox({ inputRef, value, onChange, onKeyDown, onClear }) {
         value={value}
         placeholder="Search contacts..."
         aria-label="Search contacts"
+        aria-keyshortcuts={showShortcut ? SEARCH_SHORTCUT : undefined}
+        autoFocus={autoFocus}
         onChange={onChange}
         onKeyDown={onKeyDown}
-        className="pl-8 pr-8 [&::-webkit-search-cancel-button]:hidden"
+        className="peer pl-8 pr-8 [&::-webkit-search-cancel-button]:hidden"
       />
+      {showShortcut && !value && (
+        <kbd
+          aria-hidden="true"
+          title={`Press ${SEARCH_SHORTCUT} to search`}
+          className="pointer-events-none absolute right-2 top-1/2 flex h-5 -translate-y-1/2 select-none items-center rounded border bg-muted px-1.5 font-mono text-[11px] font-medium text-muted-foreground peer-focus:hidden"
+        >
+          {SEARCH_SHORTCUT}
+        </kbd>
+      )}
       {value && (
         <Hint label="Clear search">
           <Button
@@ -139,11 +161,36 @@ function AppLayout() {
     inputRef.current?.focus();
   };
 
-  const handleSearchKeyDown = (inputRef) => (event) => {
-    if (event.key === "Escape" && searchInput) {
+  // "/" jumps to the search box, unless the user is typing somewhere or a dialog or menu is open. On phones
+  // (no top-bar box) it opens the search row, whose box takes the focus as it appears.
+  useEffect(() => {
+    if (!showSearch) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key !== SEARCH_SHORTCUT || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.defaultPrevented || isTypingInto(event.target)) return;
+      if (document.querySelector("[role=dialog], [role=alertdialog], [role=menu]")) return;
       event.preventDefault();
-      clearSearch(inputRef);
-    }
+      const desktopBox = desktopSearchRef.current;
+      // offsetParent is null when the box is hidden (the phone layout).
+      if (desktopBox && desktopBox.offsetParent !== null) {
+        desktopBox.focus();
+        desktopBox.select();
+      } else if (mobileSearchRef.current) {
+        mobileSearchRef.current.focus();
+      } else {
+        setSearchOpenMobile(true);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showSearch]);
+
+  /** Escape clears the search; pressed again (box empty), it leaves the box. */
+  const handleSearchKeyDown = (inputRef) => (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    if (searchInput) clearSearch(inputRef);
+    else inputRef.current?.blur();
   };
 
   return (
@@ -179,6 +226,7 @@ function AppLayout() {
                     onChange={handleSearchInputChange}
                     onKeyDown={handleSearchKeyDown(desktopSearchRef)}
                     onClear={() => clearSearch(desktopSearchRef)}
+                    showShortcut
                   />
                 </div>
                 <Hint label="Search" side="bottom">
@@ -207,6 +255,7 @@ function AppLayout() {
               onChange={handleSearchInputChange}
               onKeyDown={handleSearchKeyDown(mobileSearchRef)}
               onClear={() => clearSearch(mobileSearchRef)}
+              autoFocus
             />
           </div>
         )}

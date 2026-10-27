@@ -69,3 +69,14 @@ test("shows a wrong password next to the password box", async () => {
 
   expect(await screen.findByText("Current password is incorrect")).toBeInTheDocument();
 });
+
+test("asks before discarding edits to the profile", async () => {
+  const onClose = vi.fn();
+  render(<EditProfileModal user={user} onClose={onClose} onSaved={() => {}} />);
+
+  fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: "Raza" } });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+  expect(onClose).toHaveBeenCalled();
+});

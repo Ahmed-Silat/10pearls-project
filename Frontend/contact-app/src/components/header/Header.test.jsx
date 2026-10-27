@@ -157,3 +157,70 @@ test("the search box only appears on the contacts page", () => {
   renderHeader("/recently-deleted");
   expect(screen.queryByLabelText("Search contacts")).not.toBeInTheDocument();
 });
+
+describe("the / shortcut for search", () => {
+  /** jsdom lays nothing out, so every element looks hidden; this makes the top-bar box count as visible. */
+  const showDesktopBox = () =>
+    Object.defineProperty(desktopSearch(), "offsetParent", { configurable: true, get: () => document.body });
+
+  test("jumps to the search box, without typing the /", () => {
+    renderHeader("/");
+    showDesktopBox();
+
+    const typed = fireEvent.keyDown(document.body, { key: "/" });
+
+    expect(desktopSearch()).toHaveFocus();
+    expect(typed).toBe(false); // the key press was swallowed
+  });
+
+  test("the empty box shows the shortcut, and hides it once there's text", () => {
+    renderHeader("/");
+    expect(desktopSearch()).toHaveAttribute("aria-keyshortcuts", "/");
+    expect(screen.getByText("/", { selector: "kbd" })).toBeInTheDocument();
+
+    fireEvent.change(desktopSearch(), { target: { value: "ali" } });
+
+    expect(screen.queryByText("/", { selector: "kbd" })).not.toBeInTheDocument();
+  });
+
+  test("is just a / while typing in another field", () => {
+    renderHeader("/");
+    showDesktopBox();
+    const otherField = document.createElement("input");
+    document.body.appendChild(otherField);
+    otherField.focus();
+
+    fireEvent.keyDown(otherField, { key: "/" });
+
+    expect(otherField).toHaveFocus();
+    otherField.remove();
+  });
+
+  test("on phones, opens the search row and puts the cursor in it", () => {
+    renderHeader("/");
+
+    fireEvent.keyDown(document.body, { key: "/" });
+
+    const boxes = screen.getAllByLabelText("Search contacts");
+    expect(boxes).toHaveLength(2);
+    expect(boxes[1]).toHaveFocus();
+  });
+
+  test("does nothing on pages without search", () => {
+    renderHeader("/user-profile");
+
+    fireEvent.keyDown(document.body, { key: "/" });
+
+    expect(screen.queryByLabelText("Search contacts")).not.toBeInTheDocument();
+  });
+
+  test("Escape in the empty box leaves it", () => {
+    renderHeader("/");
+    showDesktopBox();
+    fireEvent.keyDown(document.body, { key: "/" });
+
+    fireEvent.keyDown(desktopSearch(), { key: "Escape" });
+
+    expect(desktopSearch()).not.toHaveFocus();
+  });
+});
