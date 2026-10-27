@@ -1,9 +1,11 @@
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { HomeIcon } from "../icons/Icons";
 
 /** Shown for any URL that doesn't match a route. Points signed-in users home and everyone else to login. */
 export default function NotFound() {
+  useDocumentTitle("Page not found");
   const isLoggedIn = Boolean(localStorage.getItem("userData"));
 
   return (

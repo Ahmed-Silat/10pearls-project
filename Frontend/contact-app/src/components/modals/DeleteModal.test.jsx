@@ -122,3 +122,17 @@ test("if undoing would duplicate a newer contact, the error toast offers Restore
   expect(restoreContact).toHaveBeenLastCalledWith(10, { allowDuplicate: true });
   await waitFor(() => expect(getContacts).toHaveBeenCalledWith({ silent: true }));
 });
+
+test("asks about the contact by name", () => {
+  render(<DeleteModal contactId={10} contactName="ali khan" onClose={vi.fn()} getContacts={vi.fn()} />);
+
+  expect(screen.getByRole("heading")).toHaveTextContent("Delete ali khan?");
+  expect(screen.getByText(/will move to/).textContent).toMatch(/^ali khan will move to Recently deleted/);
+});
+
+test("without a name, asks about 'this contact'", () => {
+  render(<DeleteModal contactId={10} onClose={vi.fn()} getContacts={vi.fn()} />);
+
+  expect(screen.getByRole("heading", { name: "Delete this contact?" })).toBeInTheDocument();
+  expect(screen.getByText(/^This contact will move to/)).toBeInTheDocument();
+});

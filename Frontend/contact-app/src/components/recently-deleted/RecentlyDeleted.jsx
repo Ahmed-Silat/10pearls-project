@@ -1,3 +1,4 @@
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ const fullNameOf = (contact) => [contact.firstName, contact.lastName].filter(Boo
 
 /** Deleted contacts, kept for 30 days. Each can be restored or deleted for good. */
 export default function RecentlyDeleted() {
+  useDocumentTitle("Recently deleted");
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
